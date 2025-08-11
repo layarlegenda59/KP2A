@@ -29,7 +29,11 @@ VITE_SUPABASE_ANON_KEY=your_actual_anon_key_here
 
 3. **Set up database tables:**
    - In your Supabase dashboard, go to SQL Editor
-   - Run the migration files in order:
+   - Copy and paste the entire content of `database-setup.sql` file
+   - Click "Run" to execute the script
+   - Wait for the success message: "✅ KP2A Cimahi database setup completed successfully!"
+   
+   **Alternative:** You can also run the migration files individually:
      - `supabase/migrations/20250808003021_precious_flame.sql`
      - `supabase/migrations/20250808003051_icy_wood.sql`
 
@@ -58,9 +62,17 @@ When running in demo mode, use these credentials:
 3. Ensure your Supabase project is active
 
 **Database Issues:**
-1. Run the migration files in your Supabase SQL Editor
-2. Check that RLS (Row Level Security) policies are enabled
-3. Verify your API key has the correct permissions
+1. **Missing tables error ("Could not find the table 'public.members'"):**
+   - Go to your Supabase dashboard → SQL Editor
+   - Copy and paste the entire content of `database-setup.sql`
+   - Click "Run" to create all required tables
+2. **CSV upload errors ("new row violates row-level security policy"):**
+   - Go to your Supabase dashboard → SQL Editor
+   - Copy and paste the entire content of `fix-rls-policies.sql`
+   - Click "Run" to update RLS policies
+3. Check that RLS (Row Level Security) policies are enabled
+4. Verify your API key has the correct permissions
+5. Ensure your Supabase project is active and not paused
 
 ### 🏗️ Project Structure
 

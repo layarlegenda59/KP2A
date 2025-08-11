@@ -1,7 +1,8 @@
 import React from 'react'
-import { Bell, Search, Database } from 'lucide-react'
+import { Search, Database } from 'lucide-react'
 import { isSupabaseAvailable } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { NotificationDropdown } from '../Notifications/NotificationDropdown'
 
 interface HeaderProps {
   title: string
@@ -45,12 +46,7 @@ export function Header({ title, subtitle }: HeaderProps) {
               {isSupabaseAvailable() && !isDemo ? 'Terkoneksi dengan Server' : 'Terkoneksi dengan Server'}
             </div>
             
-          <button className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
-            <Bell className="h-5 w-5" />
-            <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-              3
-            </span>
-          </button>
+          <NotificationDropdown />
           </div>
         </div>
       </div>

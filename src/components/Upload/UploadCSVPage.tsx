@@ -111,9 +111,14 @@ export function UploadCSVPage() {
           results.data.forEach((item: any, index: number) => {
             const rowNum = index + 2
             
-            // Validasi id_anggota
+            // Skip empty rows or rows without essential data (konsisten dengan logika upload)
+            if (!item || Object.keys(item).length === 0) {
+              return;
+            }
+            
+            // Skip rows without id_anggota (konsisten dengan logika upload)
             if (!item.id_anggota || item.id_anggota.trim() === '') {
-              invalidDues.push({row: rowNum, reason: 'ID Anggota tidak boleh kosong'})
+              return;
             }
             
             // Validasi bulan
@@ -207,8 +212,8 @@ export function UploadCSVPage() {
       const errors = []
       let currentRow = 0
       
-      for (const item of parsedData.data) {
-        currentRow++
+      for (const [index, item] of parsedData.data.entries()) {
+        const actualRowNum = index + 2 // +2 karena index dimulai dari 0 dan baris 1 adalah header
         
         // Skip empty rows or rows without essential data
         if (!item || Object.keys(item).length === 0) {
@@ -229,6 +234,8 @@ export function UploadCSVPage() {
         if (dataType === 'members' && (!item.nama_lengkap || item.nama_lengkap.trim() === '')) {
           continue;
         }
+        
+        currentRow++ // Hanya increment untuk baris yang benar-benar diproses
         
         try {
           let result
@@ -316,6 +323,7 @@ export function UploadCSVPage() {
                   tahun: parseInt(item.tahun) || new Date().getFullYear(),
                   iuran_wajib: parseFloat(item.iuran_wajib) || 0,
                   iuran_sukarela: parseFloat(item.iuran_sukarela) || 0,
+                  simpanan_wajib: parseFloat(item.simpanan_wajib) || 0,
                   tanggal_bayar: tanggalBayar,
                   status: item.status?.toLowerCase() === 'lunas' ? 'lunas' : 'belum_lunas'
                 };
@@ -430,29 +438,38 @@ export function UploadCSVPage() {
               
             case 'expenses':
                 // Konversi data CSV ke format yang sesuai dengan tabel expenses
-                let authorizedById = null;
-                if (item.disetujui_oleh) {
-                  const { data: user, error: userError } = await supabase
-                    .from('users')
-                    .select('id')
-                    .eq('email', item.disetujui_oleh) // Asumsi disetujui_oleh adalah email
-                    .maybeSingle();
-
-                  if (userError) throw userError;
-                  if (user) {
-                    authorizedById = user.id;
-                  } else {
-                    throw new Error(`User with email ${item.disetujui_oleh} not found for authorization.`);
+                
+                // Parse tanggal from MM/DD/YYYY format to YYYY-MM-DD
+                let tanggalExpense = new Date().toISOString().split('T')[0];
+                if (item.tanggal) {
+                  try {
+                    // Handle MM/DD/YYYY format from CSV
+                    const dateParts = item.tanggal.split('/');
+                    if (dateParts.length === 3) {
+                      const month = dateParts[0].padStart(2, '0');
+                      const day = dateParts[1].padStart(2, '0');
+                      const year = dateParts[2];
+                      tanggalExpense = `${year}-${month}-${day}`;
+                    }
+                  } catch (e) {
+                    console.warn('Failed to parse tanggal:', item.tanggal);
                   }
                 }
-
+                
+                // Parse jumlah - remove commas and convert to number
+                const jumlahExpense = parseFloat(item.jumlah?.toString().replace(/[^0-9.-]/g, '')) || 0;
+                
+                // Get current user ID or use a default UUID for CSV uploads
+                const session = await supabase.auth.getSession();
+                const currentUserId = session.data.session?.user?.id || '00000000-0000-0000-0000-000000000000'; // Default UUID for CSV uploads
+                
                 const expenseData = {
                   kategori: item.kategori || 'Lainnya',
-                  jumlah: parseFloat(item.jumlah) || 0,
-                  tanggal: item.tanggal || new Date().toISOString().split('T')[0],
-                  keterangan: item.keterangan || '',
-                  authorized_by: authorizedById, // Menggunakan ID UUID yang ditemukan
-                  created_by: (await supabase.auth.getSession()).data.session?.user?.id || null // Menggunakan ID pengguna yang sedang login
+                  deskripsi: item.keterangan || '', // Map 'keterangan' from CSV to 'deskripsi' in database
+                  jumlah: jumlahExpense,
+                  tanggal: tanggalExpense,
+                  status_otorisasi: 'pending', // Default status
+                  created_by: currentUserId // Always provide a valid UUID
                 };
 
                 result = await supabase.from('expenses').insert(expenseData);
@@ -463,20 +480,20 @@ export function UploadCSVPage() {
             // Pesan error yang lebih spesifik untuk kasus duplikasi
             if (result.error.message.includes('violates unique constraint')) {
               if (result.error.message.includes('members_id_anggota_key')) {
-                errors.push(`Baris ${currentRow}: ID Anggota sudah terdaftar dalam database`)
+                errors.push(`Baris ${actualRowNum}: ID Anggota sudah terdaftar dalam database`)
               } else if (result.error.message.includes('members_nik_key')) {
-                errors.push(`Baris ${currentRow}: NIK sudah terdaftar dalam database`)
+                errors.push(`Baris ${actualRowNum}: NIK sudah terdaftar dalam database`)
               } else {
-                errors.push(`Baris ${currentRow}: Data sudah terdaftar dalam database`)
+                errors.push(`Baris ${actualRowNum}: Data sudah terdaftar dalam database`)
               }
             } else {
-              errors.push(`Baris ${currentRow}: ${result.error.message}`)
+              errors.push(`Baris ${actualRowNum}: ${result.error.message}`)
             }
           } else {
             successCount++
           }
         } catch (err: any) {
-          errors.push(`Baris ${currentRow}: ${err.message || 'Terjadi kesalahan'}`)
+          errors.push(`Baris ${actualRowNum}: ${err.message || 'Terjadi kesalahan'}`)
         }
       }
       
@@ -528,7 +545,7 @@ export function UploadCSVPage() {
         filename = 'template-anggota.csv'
         break
       case 'dues':
-        headers = ['id_anggota', 'nama_lengkap', 'bulan', 'tahun', 'iuran_wajib', 'iuran_sukarela', 'tanggal_bayar', 'status']
+        headers = ['id_anggota', 'nama_lengkap', 'bulan', 'tahun', 'iuran_wajib', 'iuran_sukarela', 'simpanan_wajib', 'tanggal_bayar', 'status']
         filename = 'template-iuran.csv'
         break
       case 'loans':
@@ -557,9 +574,9 @@ export function UploadCSVPage() {
     const currentDateSlash = `${currentMonth}/${currentDay}/${currentYear}`;
     
     if (dataType === 'dues') {
-      csvContent += `001-KP2ACIMAHI,Damar Tirta,1,${currentYear},50000,0,${currentDateSlash},Lunas\n`
-      csvContent += `002-KP2ACIMAHI,Artesis Cimindi Raya,1,${currentYear},50000,25000,${currentDateSlash},Lunas\n`
-      csvContent += `003-KP2ACIMAHI,Ahmad Rahman,1,${currentYear},50000,0,${currentDateSlash},Belum Lunas\n`
+      csvContent += `001-KP2ACIMAHI,Damar Tirta,1,${currentYear},50000,0,25000,${currentDateSlash},Lunas\n`
+      csvContent += `002-KP2ACIMAHI,Artesis Cimindi Raya,1,${currentYear},50000,25000,25000,${currentDateSlash},Lunas\n`
+      csvContent += `003-KP2ACIMAHI,Ahmad Rahman,1,${currentYear},50000,0,25000,${currentDateSlash},Belum Lunas\n`
     } else if (dataType === 'members') {
       csvContent += `001-KP2ACIMAHI,Damar Tirta,081234567001,Jl. Sudirman No. 123,${currentDate},aktif,Ketua,3273010101800001\n`
       csvContent += `002-KP2ACIMAHI,Artesis Cimindi Raya,081234567002,Jl. Ahmad Yani No. 456,${currentDate},aktif,Bendahara,3273010201800002\n`
@@ -709,6 +726,7 @@ export function UploadCSVPage() {
                       <li>tahun: Tahun pembayaran (YYYY)</li>
                       <li>iuran_wajib: Jumlah iuran wajib</li>
                       <li>iuran_sukarela: Jumlah iuran sukarela</li>
+                      <li>simpanan_wajib: Jumlah simpanan wajib</li>
                       <li>tanggal_bayar: Format YYYY-MM-DD</li>
                       <li>status: lunas/belum</li>
                     </ul>

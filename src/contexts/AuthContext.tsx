@@ -37,19 +37,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initAuth = async () => {
       try {
         if (isSupabaseAvailable()) {
-          const { data: { session } } = await withTimeout(client.auth.getSession(), 4000, 'auth.getSession')
+          const { data: { session } } = await withTimeout(client.auth.getSession(), 8000, 'auth.getSession')
           setUser(session?.user ?? null)
           if (session?.user) {
-            await fetchUserProfile(session.user.id)
+            // Don't await fetchUserProfile to avoid blocking the UI
+            fetchUserProfile(session.user.id).catch(err => {
+              console.warn('Failed to fetch user profile during init:', err)
+            })
           }
         } else {
-          // Demo mode - no user initially
+          // Supabase not available
           setUser(null)
-          setIsDemo(true)
+          setIsDemo(false)
         }
       } catch (error) {
-        console.warn('Auth initialization failed - using demo mode:', error)
+        console.warn('Auth initialization failed:', error)
+        // If auth fails, still allow the app to load
         setUser(null)
+        setIsDemo(false)
       } finally {
         setLoading(false)
       }
@@ -63,7 +68,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (isSupabaseAvailable()) {
           setUser(session?.user ?? null)
           if (session?.user) {
-            await fetchUserProfile(session.user.id)
+            // Don't await fetchUserProfile to avoid blocking auth state changes
+            fetchUserProfile(session.user.id).catch(err => {
+              console.warn('Failed to fetch user profile during auth change:', err)
+            })
             setIsDemo(false)
           } else {
             setUserProfile(null)
@@ -88,85 +96,104 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           member:members(*)
         `)
         .eq('id', userId)
-        .single(), 4000, 'fetchUserProfile')
+        .maybeSingle(), 8000, 'fetchUserProfile')
 
-      if (error) throw error
+      if (error) {
+        console.error('Database error fetching user profile:', error)
+        throw error
+      }
+      
+      // If no user profile exists, create a default one
+      if (!data) {
+        console.log('No user profile found, creating default profile for user:', userId)
+        const { data: userData } = await client.auth.getUser()
+        if (userData.user) {
+          const { data: newProfile, error: insertError } = await client
+            .from('users')
+            .insert({
+              id: userId,
+              email: userData.user.email,
+              role: 'anggota'
+            })
+            .select(`
+              *,
+              member:members(*)
+            `)
+            .single()
+          
+          if (insertError) {
+            console.error('Error creating user profile:', insertError)
+            setUserProfile(null)
+            return
+          }
+          
+          setUserProfile(newProfile)
+          return
+        }
+      }
+      
       setUserProfile(data)
     } catch (error) {
-      console.warn('Error fetching user profile - using demo mode:', error)
-      // Create demo user profile
-      setUserProfile({
-        id: 'demo-user',
-        email: 'demo@kp2acimahi.com',
-        role: 'admin',
-        member: {
-          nama_lengkap: 'Demo Admin',
-          jabatan: 'Administrator'
-        }
-      } as any)
+      console.error('Error fetching user profile:', error)
+      setUserProfile(null)
     }
   }
 
   const signIn = async (email: string, password: string) => {
-    try {
-      // Short-circuit demo login to avoid hitting Supabase when using demo credentials
-      if (email === 'admin@kp2acimahi.com' && password === 'admin123') {
-        setUser({
-          id: 'demo-user',
-          email: 'admin@kp2acimahi.com',
-        } as any)
-        setUserProfile({
-          id: 'demo-user',
-          email: 'admin@kp2acimahi.com',
-          role: 'admin',
-          member: {
-            nama_lengkap: 'Demo Admin',
-            jabatan: 'Administrator'
-          }
-        } as any)
-        setIsDemo(true)
-        return
-      }
-
-      if (isSupabaseAvailable()) {
-        const { error } = await client.auth.signInWithPassword({
-          email,
-          password,
-        })
-        if (error) throw error
-        setIsDemo(false)
-      } else {
-        throw new Error('Demo mode')
-      }
-    } catch (error) {
-      // Re-throw if not demo credentials
-      throw error
+    if (!isSupabaseAvailable()) {
+      throw new Error('Koneksi Supabase tidak tersedia. Pastikan konfigurasi sudah benar.')
     }
+
+    const { error } = await client.auth.signInWithPassword({
+      email,
+      password,
+    })
+    
+    if (error) throw error
+    setIsDemo(false)
   }
 
   const signUp = async (email: string, password: string, role: string) => {
-    if (!isSupabaseAvailable()) throw new Error('Demo mode - signup not available')
+    if (!isSupabaseAvailable()) {
+      throw new Error('Koneksi Supabase tidak tersedia. Pastikan konfigurasi sudah benar.')
+    }
     
-    const { error } = await client.auth.signUp({
+    const { data, error } = await client.auth.signUp({
       email,
       password,
       options: {
         data: { role }
       }
     })
+    
     if (error) throw error
+    
+    // Insert user profile into users table
+    if (data.user) {
+      const { error: profileError } = await client
+        .from('users')
+        .insert({
+          id: data.user.id,
+          email: data.user.email,
+          role: role
+        })
+      
+      if (profileError) {
+        console.warn('Error creating user profile:', profileError)
+      }
+    }
   }
 
   const signOut = async () => {
     if (isSupabaseAvailable()) {
       const { error } = await client.auth.signOut()
       if (error) throw error
-    } else {
-      // Demo mode - just clear state
-      setUser(null)
-      setUserProfile(null)
-      setIsDemo(false)
     }
+    
+    // Clear state
+    setUser(null)
+    setUserProfile(null)
+    setIsDemo(false)
   }
 
   const value = {

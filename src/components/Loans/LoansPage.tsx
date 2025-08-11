@@ -5,12 +5,15 @@ import { isSupabaseAvailable, supabase, withTimeout } from '../../lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { LoansForm, LoansFormValues } from './LoansForm'
+import { useAuth } from '../../contexts/AuthContext'
+import { createLoanApprovalNotification } from '../../utils/notificationHelpers'
 
 type StatusFilter = 'all' | 'aktif' | 'lunas' | 'pending' | 'ditolak'
 
 // Demo data helpers removed
 
 export function LoansPage() {
+  const { user } = useAuth()
   const [loans, setLoans] = useState<(Loan & { member?: Member })[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,19 +49,43 @@ export function LoansPage() {
 
         if (status !== 'all') q = q.eq('status', status)
 
-        const [membersRes, loansRes] = await Promise.all([membersQ, withTimeout(q, 6000, 'fetch loans')])
+        // Fetch loan payments
+        const paymentsQ = withTimeout(
+          supabase.from('loan_payments').select('loan_id, total_angsuran'),
+          6000,
+          'fetch loan payments'
+        )
+
+        const [membersRes, loansRes, paymentsRes] = await Promise.all([membersQ, withTimeout(q, 6000, 'fetch loans'), paymentsQ])
         if (membersRes.error) throw membersRes.error
         if (loansRes.error) throw loansRes.error
+        if (paymentsRes.error) throw paymentsRes.error
 
         setMembers((membersRes.data as Member[]) || [])
-        const normalized = (loansRes.data as any[]).map((d) => ({
-          ...d,
-          jumlah_pinjaman: Number(d.jumlah_pinjaman),
-          bunga_persen: Number(d.bunga_persen),
-          tenor_bulan: Number(d.tenor_bulan),
-          angsuran_bulanan: Number(d.angsuran_bulanan),
-          sisa_pinjaman: Number(d.sisa_pinjaman),
-        }))
+        
+        // Calculate total payments for each loan
+        const payments = paymentsRes.data || []
+        const paymentsByLoan = payments.reduce((acc: Record<string, number>, payment: any) => {
+          if (!acc[payment.loan_id]) acc[payment.loan_id] = 0
+          acc[payment.loan_id] += Number(payment.total_angsuran || 0)
+          return acc
+        }, {})
+        
+        const normalized = (loansRes.data as any[]).map((d) => {
+          const totalPaid = paymentsByLoan[d.id] || 0
+          const actualSisaPinjaman = Math.max(0, Number(d.jumlah_pinjaman) - totalPaid)
+          
+          return {
+            ...d,
+            jumlah_pinjaman: Number(d.jumlah_pinjaman),
+            bunga_persen: Number(d.bunga_persen),
+            tenor_bulan: Number(d.tenor_bulan),
+            angsuran_bulanan: Number(d.angsuran_bulanan),
+            sisa_pinjaman: Number(d.sisa_pinjaman),
+            total_paid: totalPaid, // Add total payments
+            actual_sisa_pinjaman: actualSisaPinjaman // Add calculated remaining balance
+          }
+        })
         setLoans(normalized)
       }
     } catch (err) {
@@ -137,6 +164,16 @@ export function LoansPage() {
           sisa_pinjaman: Number(data.sisa_pinjaman),
         }
         setLoans((prev) => [normalized as any, ...prev])
+        
+        // Create notification for loan approval
+        if (user?.id && normalized.status === 'aktif') {
+          const memberName = normalized.member?.nama_lengkap || 'Anggota'
+          await createLoanApprovalNotification(
+            user.id,
+            memberName,
+            normalized.jumlah_pinjaman
+          )
+        }
       }
       toast.success('Pinjaman berhasil disimpan')
       setShowForm(false)
@@ -150,37 +187,20 @@ export function LoansPage() {
       if (!isSupabaseAvailable() || !supabase) {
         throw new Error('Koneksi Supabase tidak tersedia')
       }
-      {
-        const updateRes = await withTimeout(
-          supabase.from('loans').update(values).eq('id', id).select('*').single(),
-          8000,
-          'update loan'
-        )
-        if (updateRes.error) throw updateRes.error
+      
+      const updateRes = await withTimeout(
+        supabase.from('loans').update(values).eq('id', id).select('*').single(),
+        8000,
+        'update loan'
+      )
+      if (updateRes.error) throw updateRes.error
 
-        const fetchRes = await withTimeout(
-          supabase
-            .from('loans')
-            .select('*, member:members(id, nama_lengkap)')
-            .eq('id', id)
-            .single(),
-          6000,
-          'fetch updated loan'
-        )
-        const data = (fetchRes.data || updateRes.data) as any
-        const normalized = {
-          ...data,
-          jumlah_pinjaman: Number(data.jumlah_pinjaman),
-          bunga_persen: Number(data.bunga_persen),
-          tenor_bulan: Number(data.tenor_bulan),
-          angsuran_bulanan: Number(data.angsuran_bulanan),
-          sisa_pinjaman: Number(data.sisa_pinjaman),
-        }
-        setLoans((prev) => prev.map((l) => (l.id === id ? (normalized as any) : l)))
-      }
       toast.success('Pinjaman diperbarui')
       setEditing(null)
       setShowForm(false)
+      
+      // Refresh all data to recalculate total_paid and actual_sisa_pinjaman
+      fetchAll()
     } catch (err: any) {
       toast.error(err?.message || 'Gagal memperbarui pinjaman')
     }
@@ -253,8 +273,8 @@ export function LoansPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bunga (%)</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenor (bulan)</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Angsuran</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sisa</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Dibayar</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sisa Pinjaman</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
@@ -276,8 +296,8 @@ export function LoansPage() {
                     <td className="px-4 py-3 text-sm text-gray-700">Rp {Number(l.jumlah_pinjaman || 0).toLocaleString('id-ID')}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{Number(l.bunga_persen || 0)}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{l.tenor_bulan}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">Rp {Number(l.angsuran_bulanan || 0).toLocaleString('id-ID')}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">Rp {Number(l.sisa_pinjaman || 0).toLocaleString('id-ID')}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">Rp {Number(l.total_paid || 0).toLocaleString('id-ID')}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">Rp {Number(l.actual_sisa_pinjaman || l.sisa_pinjaman || 0).toLocaleString('id-ID')}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{new Date(l.tanggal_pinjaman).toLocaleDateString('id-ID')}</td>
                     <td className="px-4 py-3 text-sm">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${

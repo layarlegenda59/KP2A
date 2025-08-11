@@ -5,12 +5,15 @@ import { isSupabaseAvailable, supabase, withTimeout } from '../../lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { MemberForm } from './MemberForm'
+import { useAuth } from '../../contexts/AuthContext'
+import { createWelcomeNotification } from '../../utils/notificationHelpers'
 
 type StatusFilter = 'all' | 'aktif' | 'non_aktif' | 'pending'
 
 // Demo data helpers removed
 
 export function MembersPage() {
+  const { user } = useAuth()
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -90,6 +93,12 @@ export function MembersPage() {
       )
       if (error) throw error
       setMembers((prev) => [data as unknown as Member, ...prev])
+      
+      // Create welcome notification for new member
+      if (user?.id) {
+        await createWelcomeNotification(user.id, (data as any).nama_lengkap)
+      }
+      
       toast.success('Anggota berhasil ditambahkan')
       setShowForm(false)
     } catch (err: any) {

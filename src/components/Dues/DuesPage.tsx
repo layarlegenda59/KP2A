@@ -5,12 +5,15 @@ import { isSupabaseAvailable, supabase, withTimeout } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { DuesForm, DuesFormValues } from './DuesForm'
+import { useAuth } from '../../contexts/AuthContext'
+import { createDuesPaymentNotification } from '../../utils/notificationHelpers'
 
 type StatusFilter = 'all' | 'lunas' | 'belum_lunas'
 
 // Demo data helpers removed
 
 export function DuesPage() {
+  const { user } = useAuth()
   const [dues, setDues] = useState<(Due & { member?: Member })[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,7 +47,7 @@ export function DuesPage() {
 
       let q = supabase
         .from('dues')
-        .select('id, member_id, bulan, tahun, iuran_wajib, iuran_sukarela, tanggal_bayar, status, created_at, updated_at, member:members(id, nama_lengkap)')
+        .select('id, member_id, bulan, tahun, iuran_wajib, iuran_sukarela, simpanan_wajib, tanggal_bayar, status, created_at, updated_at, member:members!left(id, nama_lengkap)')
         .order('created_at', { ascending: false })
 
       if (status !== 'all') q = q.eq('status', status)
@@ -60,6 +63,7 @@ export function DuesPage() {
         ...d,
         iuran_wajib: Number(d.iuran_wajib),
         iuran_sukarela: Number(d.iuran_sukarela),
+        simpanan_wajib: Number(d.simpanan_wajib || 0),
       }))
       setDues(normalized)
     } catch (err) {
@@ -104,6 +108,7 @@ export function DuesPage() {
       tahun: values.tahun,
       iuran_wajib: values.iuran_wajib,
       iuran_sukarela: values.iuran_sukarela,
+      simpanan_wajib: values.simpanan_wajib,
       tanggal_bayar: values.tanggal_bayar,
       status: values.status,
     }
@@ -136,7 +141,7 @@ export function DuesPage() {
         const fetchRes = await withTimeout(
           supabase
             .from('dues')
-            .select('*, member:members(id, nama_lengkap)')
+            .select('*, member:members!left(id, nama_lengkap)')
             .eq('id', (writeRes.data as any).id)
             .single(),
           6000,
@@ -149,6 +154,20 @@ export function DuesPage() {
           iuran_sukarela: Number(data.iuran_sukarela),
         }
         setDues((prev) => [normalized as any, ...prev])
+      
+      // Create notification for dues payment
+      if (user?.id && normalized.status === 'lunas') {
+        const memberName = normalized.member?.nama_lengkap || 'Anggota'
+        const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+        const monthName = monthNames[normalized.bulan - 1]
+        await createDuesPaymentNotification(
+          user.id,
+          memberName,
+          `${monthName} ${normalized.tahun}`,
+          normalized.iuran_wajib + normalized.iuran_sukarela
+        )
+      }
+      
       toast.success('Iuran berhasil disimpan')
       setShowForm(false)
     } catch (err: any) {
@@ -157,13 +176,23 @@ export function DuesPage() {
   }
 
   const handleUpdate = async (id: string, values: Partial<DuesFormValues>) => {
+    const payload = {
+      member_id: values.member_id,
+      bulan: values.bulan,
+      tahun: values.tahun,
+      iuran_wajib: values.iuran_wajib,
+      iuran_sukarela: values.iuran_sukarela,
+      simpanan_wajib: values.simpanan_wajib,
+      tanggal_bayar: values.tanggal_bayar,
+      status: values.status,
+    }
     try {
       if (!isSupabaseAvailable() || !supabase) {
         throw new Error('Koneksi Supabase tidak tersedia')
       }
       // Update without relation selection
       const updateRes = await withTimeout(
-        supabase.from('dues').update(values).eq('id', id).select('*').single(),
+        supabase.from('dues').update(payload).eq('id', id).select('*').single(),
         8000,
         'update dues'
       )
@@ -173,7 +202,7 @@ export function DuesPage() {
       const fetchRes = await withTimeout(
         supabase
           .from('dues')
-          .select('*, member:members(id, nama_lengkap)')
+          .select('*, member:members!left(id, nama_lengkap)')
           .eq('id', id)
           .single(),
         6000,
@@ -378,9 +407,10 @@ export function DuesPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Anggota</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bulan</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tahun</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Iuran Wajib</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Iuran Sukarela</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Bayar</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Iuran Wajib</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Iuran Sukarela</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Simpanan Wajib</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Bayar</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
               </tr>
@@ -414,6 +444,7 @@ export function DuesPage() {
                     <td className="px-4 py-3 text-sm text-gray-700">{d.tahun}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">Rp {Number(d.iuran_wajib || 0).toLocaleString('id-ID')}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">Rp {Number(d.iuran_sukarela || 0).toLocaleString('id-ID')}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">Rp {Number(d.simpanan_wajib || 0).toLocaleString('id-ID')}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{new Date(d.tanggal_bayar).toLocaleDateString('id-ID')}</td>
                     <td className="px-4 py-3 text-sm">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${d.status === 'lunas' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{d.status}</span>

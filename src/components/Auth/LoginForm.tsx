@@ -1,10 +1,14 @@
 import React, { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { Building2, Eye, EyeOff } from 'lucide-react'
+import { Building2, Eye, EyeOff, UserPlus } from 'lucide-react'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 
-export function LoginForm() {
+interface LoginFormProps {
+  onShowRegister?: () => void
+}
+
+export function LoginForm({ onShowRegister }: LoginFormProps) {
   const { signIn } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -97,14 +101,20 @@ export function LoginForm() {
             </button>
           </form>
 
-          {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-600 text-center mb-2">Demo Account:</p>
-            <p className="text-xs text-gray-700 text-center">
-              Email: admin@kp2acimahi.com<br />
-              Password: admin123
-            </p>
-          </div>
+          {/* Register Link */}
+          {onShowRegister && (
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600 mb-2">Belum punya akun?</p>
+              <button
+                type="button"
+                onClick={onShowRegister}
+                className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium transition-colors"
+              >
+                <UserPlus className="h-4 w-4 mr-1" />
+                Daftar Akun Admin
+              </button>
+            </div>
+          )}
         </div>
       </motion.div>
     </div>

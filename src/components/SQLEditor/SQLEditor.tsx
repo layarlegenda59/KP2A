@@ -50,21 +50,25 @@ interface QueryHistory {
 
 export function SQLEditor() {
   const [query, setQuery] = useState(`-- Welcome to KP2A Cimahi SQL Editor
--- Example queries to get you started:
+-- Supported queries (for security, only basic SELECT operations):
 
 -- View all members
-SELECT * FROM members LIMIT 10;
+SELECT * FROM members;
 
--- Check monthly dues summary
-SELECT 
-  m.nama_lengkap,
-  d.bulan,
-  d.tahun,
-  d.iuran_wajib + d.iuran_sukarela as total_iuran
-FROM members m
-JOIN dues d ON m.id = d.member_id
-WHERE d.tahun = 2023
-ORDER BY d.bulan DESC;`)
+-- View all dues
+SELECT * FROM dues;
+
+-- View all loans
+SELECT * FROM loans;
+
+-- View all expenses
+SELECT * FROM expenses;
+
+-- View all loan payments
+SELECT * FROM loan_payments;
+
+-- View members with their dues (JOIN query)
+SELECT * FROM members JOIN dues;`)
 
   const [result, setResult] = useState<QueryResult | null>(null)
   const [isExecuting, setIsExecuting] = useState(false)
@@ -117,6 +121,69 @@ ORDER BY d.bulan DESC;`)
       return
     }
 
+    // STRICT validation for non-SQL code patterns - BLOCK ALL React/JS code
+    const trimmedQuery = query.trim()
+    
+    // Block extremely long queries (React component code would be much longer)
+    if (trimmedQuery.length > 2000) {
+      toast.error('🚫 BLOCKED: Query terlalu panjang! Kemungkinan bukan SQL. Editor direset.')
+      resetToDefaultQuery()
+      return
+    }
+    
+    // Immediate check for React/JS imports
+    if (trimmedQuery.startsWith('import ') || trimmedQuery.startsWith('export ')) {
+      toast.error('🚫 BLOCKED: Kode React/JS terdeteksi! Gunakan tombol Reset.')
+      resetToDefaultQuery()
+      return
+    }
+    
+    const invalidPatterns = [
+      'import ', 'export ', 'function ', 'const ', 'let ', 'var ',
+      'React', 'useState', 'useEffect', 'useCallback', 'useRef',
+      'return (', '</', 'className=', 'interface ', 'type ',
+      'from \'', 'from "', '=>', '{', '}', 'tsx', 'jsx',
+      'motion', 'AnimatePresence', 'toast', 'saveAs', 'Editor',
+      'lucide-react', 'file-saver', 'monaco-editor'
+    ]
+    
+    const hasInvalidPattern = invalidPatterns.some(pattern => 
+      trimmedQuery.toLowerCase().includes(pattern.toLowerCase())
+    )
+    
+    // Also check if it starts with non-SQL keywords
+    const startsWithInvalid = /^(import|export|function|const|let|var|interface|type)\s/i.test(trimmedQuery)
+    
+    if (hasInvalidPattern || startsWithInvalid) {
+      toast.error('🚫 BLOCKED: Hanya query SQL yang diizinkan! Editor direset otomatis.')
+      resetToDefaultQuery()
+      return
+    }
+    
+    // Additional safety checks for JavaScript/React patterns
+    if (trimmedQuery.includes('{ useState') || 
+        trimmedQuery.includes('useRef') || 
+        trimmedQuery.includes('useCallback') || 
+        trimmedQuery.includes('useEffect') ||
+        trimmedQuery.includes('} from') ||
+        /\{[^}]*\}/g.test(trimmedQuery.replace(/--.*$/gm, '')) // Remove comments first
+    ) {
+      toast.error('🚫 BLOCKED: JavaScript/React syntax terdeteksi! Editor direset.')
+      resetToDefaultQuery()
+      return
+    }
+    
+    // Ensure it contains SQL keywords
+    const sqlKeywords = ['select', 'from', 'where', 'join', 'order', 'group']
+    const hasSqlKeyword = sqlKeywords.some(keyword => 
+      trimmedQuery.toLowerCase().includes(keyword)
+    )
+    
+    if (!hasSqlKeyword && !trimmedQuery.startsWith('--')) {
+      toast.error('❌ Query harus mengandung kata kunci SQL (SELECT, FROM, dll.) atau komentar (--)')
+      return
+    }
+
     if (!isSupabaseAvailable() || !supabase) {
       toast.error('Database connection not available')
       return
@@ -126,10 +193,46 @@ ORDER BY d.bulan DESC;`)
     const startTime = Date.now()
 
     try {
-      // Execute the query using Supabase RPC or direct query
-      const { data, error } = await supabase.rpc('execute_sql', { 
-        query_text: query.trim() 
-      })
+      // Parse and execute the query using direct Supabase client methods
+      const trimmedQuery = query.trim().toLowerCase()
+      let data, error
+      
+      if (trimmedQuery.includes('select * from members')) {
+        const result = await supabase.from('members').select('*').limit(100)
+        data = result.data
+        error = result.error
+      } else if (trimmedQuery.includes('select * from dues')) {
+        const result = await supabase.from('dues').select('*').limit(100)
+        data = result.data
+        error = result.error
+      } else if (trimmedQuery.includes('select * from loans')) {
+        const result = await supabase.from('loans').select('*').limit(100)
+        data = result.data
+        error = result.error
+      } else if (trimmedQuery.includes('select * from expenses')) {
+        const result = await supabase.from('expenses').select('*').limit(100)
+        data = result.data
+        error = result.error
+      } else if (trimmedQuery.includes('select * from loan_payments')) {
+        const result = await supabase.from('loan_payments').select('*').limit(100)
+        data = result.data
+        error = result.error
+      } else if (trimmedQuery.includes('from members') && trimmedQuery.includes('join dues')) {
+        // Handle JOIN queries for members and dues
+        const result = await supabase
+          .from('members')
+          .select(`
+            *,
+            dues(*)
+          `)
+          .limit(50)
+        data = result.data
+        error = result.error
+      } else {
+        // For other queries, provide a safe fallback
+        error = { message: 'For security reasons, only basic SELECT queries on main tables (members, dues, loans, expenses, loan_payments) are supported. Use table names directly like: SELECT * FROM members' }
+        data = null
+      }
 
       const executionTime = Date.now() - startTime
       const historyEntry: QueryHistory = {
@@ -277,6 +380,66 @@ ORDER BY d.bulan DESC;`)
     }
   }, [])
 
+  const resetToDefaultQuery = useCallback(() => {
+    const defaultQuery = `-- Welcome to KP2A Cimahi SQL Editor
+-- Supported queries (for security, only basic SELECT operations):
+
+-- View all members
+SELECT * FROM members;
+
+-- View all dues
+SELECT * FROM dues;
+
+-- View all loans
+SELECT * FROM loans;
+
+-- View all expenses
+SELECT * FROM expenses;
+
+-- View all loan payments
+SELECT * FROM loan_payments;
+
+-- View members with their dues (JOIN query)
+SELECT * FROM members JOIN dues;`
+    setQuery(defaultQuery)
+    toast.success('✅ Editor direset ke query SQL default')
+  }, [])
+
+  // Auto-detect and clean non-SQL content immediately
+  useEffect(() => {
+    const checkAndCleanQuery = () => {
+      const trimmedQuery = query.trim()
+      const invalidPatterns = [
+        'import ', 'export ', 'function ', 'const ', 'let ', 'var ',
+        'React', 'useState', 'useEffect', 'useCallback', 'useRef',
+        'return (', '</', 'className=', 'interface ', 'type ',
+        'from \'', 'from "', '=>', 'tsx', 'jsx', 'motion', 'AnimatePresence'
+      ]
+      
+      const hasInvalidPattern = invalidPatterns.some(pattern => 
+        trimmedQuery.toLowerCase().includes(pattern.toLowerCase())
+      )
+      
+      // Immediate reset if React/JS code is detected
+      if (hasInvalidPattern && trimmedQuery.length > 50) {
+        toast.error('🚫 Kode non-SQL terdeteksi! Editor direset otomatis.')
+        resetToDefaultQuery()
+        return
+      }
+      
+      // Also check if it starts with import/export
+      if (trimmedQuery.startsWith('import ') || trimmedQuery.startsWith('export ')) {
+        toast.error('🚫 Kode React/JS terdeteksi! Editor direset otomatis.')
+        resetToDefaultQuery()
+        return
+      }
+    }
+
+    // Check immediately, no delay
+    const timeoutId = setTimeout(checkAndCleanQuery, 100)
+    return () => clearTimeout(timeoutId)
+  }, [query, resetToDefaultQuery])
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -326,6 +489,16 @@ ORDER BY d.bulan DESC;`)
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
+      {/* Warning Banner */}
+      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3">
+        <div className="flex items-center">
+          <AlertCircle className="h-4 w-4 text-yellow-600 mr-2" />
+          <p className="text-sm text-yellow-800">
+            <strong>Peringatan:</strong> Hanya query SQL yang diizinkan. Jangan paste kode React/JavaScript ke editor ini.
+          </p>
+        </div>
+      </div>
+
       {/* Toolbar */}
       <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
         <div className="flex items-center space-x-2">
@@ -365,6 +538,14 @@ ORDER BY d.bulan DESC;`)
           >
             <Settings className="h-4 w-4 mr-2" />
             Format
+          </button>
+
+          <button
+            onClick={resetToDefaultQuery}
+            className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Reset
           </button>
         </div>
 

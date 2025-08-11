@@ -1,77 +1,153 @@
-/*
-  # Seed Data for KP2A Cimahi Financial System
+-- Enable Row Level Security (RLS) on all tables
+ALTER TABLE public.members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.dues ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.loans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.loan_payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
-  This migration adds sample data for testing the application.
-  
-  1. Sample members
-  2. Sample admin user
-  3. Sample dues data
-  4. Sample loans
-  5. Sample expenses
-*/
+-- Create RLS policies for members table
+CREATE POLICY "Allow authenticated users to view members" ON public.members
+    FOR SELECT USING (auth.role() = 'authenticated');
 
--- Insert sample members
-INSERT INTO members (id, id_anggota, nama_lengkap, nik, alamat, no_hp, status_keanggotaan, tanggal_masuk, jabatan) VALUES
-('550e8400-e29b-41d4-a716-446655440001', '001-KP2ACIMAHI', 'Budi Santoso', '3273010101800001', 'Jl. Sudirman No. 123, Cimahi', '081234567001', 'aktif', '2020-01-15', 'Ketua'),
-('550e8400-e29b-41d4-a716-446655440002', '002-KP2ACIMAHI', 'Siti Nurhaliza', '3273010201800002', 'Jl. Ahmad Yani No. 456, Cimahi', '081234567002', 'aktif', '2020-02-20', 'Bendahara'),
-('550e8400-e29b-41d4-a716-446655440003', '003-KP2ACIMAHI', 'Ahmad Rahman', '3273010301800003', 'Jl. Gatot Subroto No. 789, Cimahi', '081234567003', 'aktif', '2020-03-10', 'Sekretaris'),
-('550e8400-e29b-41d4-a716-446655440004', '004-KP2ACIMAHI', 'Maria Susanti', '3273010401800004', 'Jl. Diponegoro No. 321, Cimahi', '081234567004', 'aktif', '2020-04-05', 'Anggota'),
-('550e8400-e29b-41d4-a716-446655440005', '005-KP2ACIMAHI', 'Dedi Kurniawan', '3273010501800005', 'Jl. Veteran No. 654, Cimahi', '081234567005', 'aktif', '2020-05-12', 'Anggota'),
-('550e8400-e29b-41d4-a716-446655440006', '006-KP2ACIMAHI', 'Rina Wati', '3273010601800006', 'Jl. Cihampelas No. 987, Cimahi', '081234567006', 'aktif', '2020-06-18', 'Anggota'),
-('550e8400-e29b-41d4-a716-446655440007', '007-KP2ACIMAHI', 'Eko Prasetyo', '3273010701800007', 'Jl. Braga No. 147, Cimahi', '081234567007', 'aktif', '2020-07-22', 'Anggota'),
-('550e8400-e29b-41d4-a716-446655440008', '008-KP2ACIMAHI', 'Dewi Sartika', '3273010801800008', 'Jl. Asia Afrika No. 258, Cimahi', '081234567008', 'aktif', '2020-08-30', 'Anggota');
+CREATE POLICY "Allow authenticated users to insert members" ON public.members
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
--- Insert sample dues data for the last 6 months
-INSERT INTO dues (member_id, bulan, tahun, iuran_wajib, iuran_sukarela, tanggal_bayar, status) VALUES
--- January 2024
-('550e8400-e29b-41d4-a716-446655440001', 1, 2024, 50000, 25000, '2024-01-05', 'lunas'),
-('550e8400-e29b-41d4-a716-446655440002', 1, 2024, 50000, 30000, '2024-01-07', 'lunas'),
-('550e8400-e29b-41d4-a716-446655440003', 1, 2024, 50000, 20000, '2024-01-10', 'lunas'),
-('550e8400-e29b-41d4-a716-446655440004', 1, 2024, 50000, 0, '2024-01-15', 'lunas'),
-('550e8400-e29b-41d4-a716-446655440005', 1, 2024, 50000, 15000, '2024-01-20', 'lunas'),
--- February 2024
-('550e8400-e29b-41d4-a716-446655440001', 2, 2024, 50000, 25000, '2024-02-05', 'lunas'),
-('550e8400-e29b-41d4-a716-446655440002', 2, 2024, 50000, 35000, '2024-02-07', 'lunas'),
-('550e8400-e29b-41d4-a716-446655440003', 2, 2024, 50000, 20000, '2024-02-10', 'lunas'),
-('550e8400-e29b-41d4-a716-446655440004', 2, 2024, 50000, 10000, '2024-02-15', 'lunas'),
--- March 2024
-('550e8400-e29b-41d4-a716-446655440001', 3, 2024, 50000, 30000, '2024-03-05', 'lunas'),
-('550e8400-e29b-41d4-a716-446655440002', 3, 2024, 50000, 40000, '2024-03-07', 'lunas'),
-('550e8400-e29b-41d4-a716-446655440003', 3, 2024, 50000, 25000, '2024-03-10', 'lunas'),
--- April 2024
-('550e8400-e29b-41d4-a716-446655440001', 4, 2024, 50000, 25000, '2024-04-05', 'lunas'),
-('550e8400-e29b-41d4-a716-446655440002', 4, 2024, 50000, 30000, '2024-04-07', 'lunas'),
--- May 2024
-('550e8400-e29b-41d4-a716-446655440001', 5, 2024, 50000, 25000, '2024-05-05', 'lunas'),
-('550e8400-e29b-41d4-a716-446655440002', 5, 2024, 50000, 30000, '2024-05-07', 'lunas'),
--- June 2024 (current month - some pending)
-('550e8400-e29b-41d4-a716-446655440001', 6, 2024, 50000, 25000, '2024-06-05', 'lunas'),
-('550e8400-e29b-41d4-a716-446655440003', 6, 2024, 50000, 0, '2024-06-15', 'belum_lunas');
+CREATE POLICY "Allow authenticated users to update members" ON public.members
+    FOR UPDATE USING (auth.role() = 'authenticated');
 
--- Insert sample loans
-INSERT INTO loans (id, member_id, jumlah_pinjaman, bunga_persen, tenor_bulan, angsuran_bulanan, tanggal_pinjaman, status, sisa_pinjaman) VALUES
-('660e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440003', 5000000, 2.0, 12, 442450, '2024-01-10', 'aktif', 2650000),
-('660e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440004', 3000000, 2.0, 10, 331470, '2024-02-15', 'aktif', 2000000),
-('660e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440005', 2000000, 1.5, 6, 349560, '2024-03-20', 'aktif', 1050000),
-('660e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440006', 1500000, 2.0, 8, 201870, '2024-01-05', 'lunas', 0);
+CREATE POLICY "Allow authenticated users to delete members" ON public.members
+    FOR DELETE USING (auth.role() = 'authenticated');
 
--- Insert sample loan payments
-INSERT INTO loan_payments (loan_id, angsuran_ke, angsuran_pokok, angsuran_bunga, total_angsuran, tanggal_bayar, status) VALUES
--- Loan 1 payments
-('660e8400-e29b-41d4-a716-446655440001', 1, 342450, 100000, 442450, '2024-02-10', 'lunas'),
-('660e8400-e29b-41d4-a716-446655440001', 2, 349380, 93070, 442450, '2024-03-10', 'lunas'),
-('660e8400-e29b-41d4-a716-446655440001', 3, 356450, 86000, 442450, '2024-04-10', 'lunas'),
-('660e8400-e29b-41d4-a716-446655440001', 4, 363660, 78790, 442450, '2024-05-10', 'lunas'),
-('660e8400-e29b-41d4-a716-446655440001', 5, 371010, 71440, 442450, '2024-06-10', 'lunas'),
--- Loan 2 payments
-('660e8400-e29b-41d4-a716-446655440002', 1, 271470, 60000, 331470, '2024-03-15', 'lunas'),
-('660e8400-e29b-41d4-a716-446655440002', 2, 276890, 54580, 331470, '2024-04-15', 'lunas'),
-('660e8400-e29b-41d4-a716-446655440002', 3, 282420, 49050, 331470, '2024-05-15', 'lunas'),
--- Loan 3 payments
-('660e8400-e29b-41d4-a716-446655440003', 1, 319560, 30000, 349560, '2024-04-20', 'lunas'),
-('660e8400-e29b-41d4-a716-446655440003', 2, 324350, 25210, 349560, '2024-05-20', 'lunas'),
-('660e8400-e29b-41d4-a716-446655440003', 3, 329210, 20350, 349560, '2024-06-20', 'lunas');
+-- Create RLS policies for dues table
+CREATE POLICY "Allow authenticated users to view dues" ON public.dues
+    FOR SELECT USING (auth.role() = 'authenticated');
 
--- Sample expenses will be added after user authentication is set up
--- INSERT INTO expenses (kategori, deskripsi, jumlah, tanggal, status_otorisasi, created_by) VALUES
--- ('Operasional', 'Pembelian alat tulis kantor', 150000, '2024-01-15', 'approved', 'user_id_here');
+CREATE POLICY "Allow authenticated users to insert dues" ON public.dues
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to update dues" ON public.dues
+    FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to delete dues" ON public.dues
+    FOR DELETE USING (auth.role() = 'authenticated');
+
+-- Create RLS policies for loans table
+CREATE POLICY "Allow authenticated users to view loans" ON public.loans
+    FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to insert loans" ON public.loans
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to update loans" ON public.loans
+    FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to delete loans" ON public.loans
+    FOR DELETE USING (auth.role() = 'authenticated');
+
+-- Create RLS policies for loan_payments table
+CREATE POLICY "Allow authenticated users to view loan_payments" ON public.loan_payments
+    FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to insert loan_payments" ON public.loan_payments
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to update loan_payments" ON public.loan_payments
+    FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to delete loan_payments" ON public.loan_payments
+    FOR DELETE USING (auth.role() = 'authenticated');
+
+-- Create RLS policies for expenses table
+CREATE POLICY "Allow authenticated users to view expenses" ON public.expenses
+    FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to insert expenses" ON public.expenses
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to update expenses" ON public.expenses
+    FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to delete expenses" ON public.expenses
+    FOR DELETE USING (auth.role() = 'authenticated');
+
+-- Create RLS policies for users table
+CREATE POLICY "Allow users to view their own data" ON public.users
+    FOR SELECT USING (auth.uid() = id OR auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to insert users" ON public.users
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow users to update their own data" ON public.users
+    FOR UPDATE USING (auth.uid() = id OR auth.role() = 'authenticated');
+
+-- Create WhatsApp bot configuration tables
+CREATE TABLE IF NOT EXISTS public.whatsapp_templates (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.whatsapp_config (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    status TEXT CHECK (status IN ('active', 'inactive')) DEFAULT 'inactive',
+    welcome_message TEXT NOT NULL DEFAULT 'Selamat datang di KP2A Cimahi!',
+    phone_number TEXT,
+    auto_reply BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS on WhatsApp tables
+ALTER TABLE public.whatsapp_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.whatsapp_config ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies for WhatsApp tables
+CREATE POLICY "Allow authenticated users to manage whatsapp_templates" ON public.whatsapp_templates
+    FOR ALL USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to manage whatsapp_config" ON public.whatsapp_config
+    FOR ALL USING (auth.role() = 'authenticated');
+
+-- Create triggers for WhatsApp tables
+CREATE TRIGGER update_whatsapp_templates_updated_at BEFORE UPDATE ON public.whatsapp_templates FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_whatsapp_config_updated_at BEFORE UPDATE ON public.whatsapp_config FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert default WhatsApp configuration
+INSERT INTO public.whatsapp_config (status, welcome_message, auto_reply) 
+VALUES ('inactive', 'Selamat datang di KP2A Cimahi! Silakan ketik "help" untuk melihat menu yang tersedia.', false)
+ON CONFLICT DO NOTHING;
+
+-- Insert sample WhatsApp templates
+INSERT INTO public.whatsapp_templates (name, content) VALUES 
+('welcome', 'Selamat datang di KP2A Cimahi! Silakan ketik "help" untuk melihat menu yang tersedia.'),
+('help', 'Menu yang tersedia:\n1. info - Informasi organisasi\n2. saldo - Cek saldo iuran\n3. pinjaman - Info pinjaman\n4. kontak - Hubungi admin'),
+('info', 'KP2A Cimahi adalah organisasi yang melayani kebutuhan finansial anggota dengan berbagai produk simpan pinjam.'),
+('kontak', 'Untuk informasi lebih lanjut, hubungi admin di nomor: 0812-3456-7890')
+ON CONFLICT DO NOTHING;
+
+-- Grant necessary permissions
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated;
+
+-- Create a function to handle user registration
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.users (id, email, role)
+    VALUES (NEW.id, NEW.email, 'anggota');
+    RETURN NEW;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create trigger for new user registration
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();

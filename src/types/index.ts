@@ -40,6 +40,8 @@ export interface Loan {
   created_at: string
   updated_at: string
   member?: Member
+  total_paid?: number // Total pembayaran yang sudah dilakukan
+  actual_sisa_pinjaman?: number // Sisa pinjaman yang sebenarnya berdasarkan pembayaran
 }
 
 export interface LoanPayment {

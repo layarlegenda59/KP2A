@@ -5,10 +5,13 @@ import { isSupabaseAvailable, supabase, withTimeout } from '../../lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { LoanPaymentForm, LoanPaymentFormValues } from './LoanPaymentForm'
+import { useAuth } from '../../contexts/AuthContext'
+import { createLoanPaymentReminderNotification } from '../../utils/notificationHelpers'
 
 type StatusFilter = 'all' | 'lunas' | 'terlambat'
 
 export function LoanPaymentsPage() {
+  const { user } = useAuth()
   const [payments, setPayments] = useState<(LoanPayment & { loan?: Loan & { member?: Member } })[]>([])
   const [loans, setLoans] = useState<(Loan & { member?: Member })[]>([])
   const [loading, setLoading] = useState(true)
@@ -209,6 +212,19 @@ export function LoanPaymentsPage() {
           6000,
           'update loan balance'
         )
+      }
+
+      // Create notification for loan payment
+      if (user?.id) {
+        const loan = loans.find(l => l.id === values.loan_id)
+        if (loan?.member?.nama_lengkap) {
+          await createLoanPaymentReminderNotification(
+            user.id,
+            loan.member.nama_lengkap,
+            values.angsuran_ke,
+            values.total_angsuran
+          )
+        }
       }
 
       toast.success('Pembayaran angsuran berhasil disimpan')

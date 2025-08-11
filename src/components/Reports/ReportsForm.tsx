@@ -7,6 +7,7 @@ export const reportsSchema = yup.object({
   tipe_laporan: yup.mixed<'bulanan' | 'triwulan' | 'tahunan'>().oneOf(['bulanan', 'triwulan', 'tahunan']).required(),
   periode_start: yup.string().required('Periode awal wajib diisi'),
   periode_end: yup.string().required('Periode akhir wajib diisi'),
+  is_detailed: yup.boolean().default(false),
 }).required()
 
 export type ReportsFormValues = yup.InferType<typeof reportsSchema>
@@ -28,6 +29,7 @@ export function ReportsForm({
       tipe_laporan: 'bulanan',
       periode_start: startDefault,
       periode_end: endDefault,
+      is_detailed: false,
     }
   })
 
@@ -53,6 +55,11 @@ export function ReportsForm({
           <input type="date" {...register('periode_end')} className="w-full px-3 py-2 border rounded-lg" />
           {errors.periode_end && <p className="text-xs text-red-600 mt-1">{errors.periode_end.message}</p>}
         </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input type="checkbox" {...register('is_detailed')} id="is_detailed" className="rounded" />
+        <label htmlFor="is_detailed" className="text-sm text-gray-700">Laporan Terperinci (tampilkan semua transaksi)</label>
       </div>
 
       <div className="flex items-center justify-end gap-2 pt-2">

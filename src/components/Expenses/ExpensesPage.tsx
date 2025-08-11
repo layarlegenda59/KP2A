@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { ExpensesForm, ExpensesFormValues } from './ExpensesForm'
 import { useAuth } from '../../contexts/AuthContext'
+import { createExpenseApprovalNotification } from '../../utils/notificationHelpers'
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected'
 
@@ -110,6 +111,15 @@ export function ExpensesPage() {
           const data = insertRes.data as any
           data.jumlah = Number(data.jumlah)
           setItems((prev) => [data, ...prev])
+          
+          // Create notification for expense approval
+          if (user?.id && data.status_otorisasi === 'approved') {
+            await createExpenseApprovalNotification(
+              user.id,
+              data.kategori,
+              data.jumlah
+            )
+          }
         } else {
           // No session: fallback to demo/local
           const now = new Date().toISOString()

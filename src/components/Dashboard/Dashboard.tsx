@@ -21,11 +21,14 @@ export function Dashboard() {
       
       if (isSupabaseAvailable() && supabase) {
         // Fetch basic counts
+        const currentMonth = new Date().getMonth() + 1
+        const currentYear = new Date().getFullYear()
+        
         const [membersRes, duesRes, loansRes, expensesRes] = await Promise.all([
           withTimeout(supabase.from('members').select('id', { count: 'exact' }), 5000, 'members count'),
-          withTimeout(supabase.from('dues').select('iuran_wajib, iuran_sukarela').gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()), 5000, 'dues this month'),
+          withTimeout(supabase.from('dues').select('iuran_wajib, iuran_sukarela').eq('bulan', currentMonth).eq('tahun', currentYear), 5000, 'dues this month'),
           withTimeout(supabase.from('loans').select('id, sisa_pinjaman').eq('status', 'aktif'), 5000, 'active loans'),
-          withTimeout(supabase.from('expenses').select('jumlah').gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()), 5000, 'expenses this month')
+          withTimeout(supabase.from('expenses').select('jumlah').gte('tanggal', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]), 5000, 'expenses this month')
         ])
 
         const totalMembers = membersRes.count || 0

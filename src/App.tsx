@@ -2,7 +2,8 @@ import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
-import { LoginForm } from './components/Auth/LoginForm'
+import { NotificationProvider } from './contexts/NotificationContext'
+import { AuthPage } from './components/Auth/AuthPage'
 import { MainLayout } from './components/Layout/MainLayout'
 import { Dashboard } from './components/Dashboard/Dashboard'
 import { MembersPage } from './components/Members/MembersPage'
@@ -14,6 +15,8 @@ import { ExpensesPage } from './components/Expenses/ExpensesPage'
 import { ReportsPage } from './components/Reports/ReportsPage'
 import { UploadCSVPage } from './components/Upload/UploadCSVPage'
 import { WhatsAppBotPage } from './components/WhatsApp/WhatsAppBotPage'
+import { AdminManagementPage } from './components/Admin/AdminManagementPage'
+import { ProfilePage } from './components/Profile/ProfilePage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -44,7 +47,7 @@ function AppRoutes() {
     <Routes>
       <Route 
         path="/login" 
-        element={user ? <Navigate to="/" /> : <LoginForm />} 
+        element={user ? <Navigate to="/" /> : <AuthPage />} 
       />
       <Route
         path="/"
@@ -60,7 +63,7 @@ function AppRoutes() {
         path="/members"
         element={
           <ProtectedRoute>
-            <MainLayout title="Data Anggota" subtitle="Kelola data anggota koperasi">
+            <MainLayout title="Data Anggota" subtitle="Kelola data anggota">
               <MembersPage />
             </MainLayout>
           </ProtectedRoute>
@@ -110,7 +113,7 @@ function AppRoutes() {
         path="/expenses"
         element={
           <ProtectedRoute>
-            <MainLayout title="Pengeluaran" subtitle="Kelola pengeluaran koperasi">
+            <MainLayout title="Pengeluaran" subtitle="Kelola pengeluaran organisasi">
               <ExpensesPage />
             </MainLayout>
           </ProtectedRoute>
@@ -146,6 +149,26 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <MainLayout title="Manajemen Admin" subtitle="Kelola akun pengguna dan hak akses">
+              <AdminManagementPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <MainLayout title="Profil Saya" subtitle="Kelola informasi profil Anda">
+              <ProfilePage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
 
     </Routes>
   )
@@ -154,19 +177,21 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppRoutes />
-        <Toaster 
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-          }}
-        />
-      </Router>
+      <NotificationProvider>
+        <Router>
+          <AppRoutes />
+          <Toaster 
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#363636',
+                color: '#fff',
+              },
+            }}
+          />
+        </Router>
+      </NotificationProvider>
     </AuthProvider>
   )
 }

@@ -39,11 +39,18 @@ export function LoginForm({ onShowRegister }: LoginFormProps) {
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* Logo and Title */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-              <Building2 className="h-8 w-8 text-white" />
+            <div className="inline-flex items-center justify-center w-16 h-16 mb-4">
+              <img 
+                src="https://kcxerkbbxeevxixsefwr.supabase.co/storage/v1/object/sign/material/Logo%20KP2A%20-%20Picture%20Only.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81MGFlMGNiNi0yZDAzLTQ3NTgtODhkMy1kNjg1OTg0MmFlOWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJtYXRlcmlhbC9Mb2dvIEtQMkEgLSBQaWN0dXJlIE9ubHkucG5nIiwiaWF0IjoxNzU0OTI4OTI1LCJleHAiOjE3ODY0NjQ5MjV9.v_forvNDBKJ3KD9PoPGrfpCBCxS0-1qANxT9tECXxcU" 
+                alt="KP2A Logo" 
+                className="w-18 h-18 object-contain"
+              />
             </div>
-            <h2 className="text-3xl font-bold text-gray-900">KP2A Cimahi</h2>
-            <p className="text-gray-600 mt-2">Financial Reporting System</p>
+            <img 
+              src="https://kcxerkbbxeevxixsefwr.supabase.co/storage/v1/object/sign/material/Text%20-%20Login.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81MGFlMGNiNi0yZDAzLTQ3NTgtODhkMy1kNjg1OTg0MmFlOWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJtYXRlcmlhbC9UZXh0IC0gTG9naW4ucG5nIiwiaWF0IjoxNzU0ODkyNDc5LCJleHAiOjE3ODY0Mjg0Nzl9.EBWX6mOQES0TbaFqefDwtK70VXsEXHL7UU5NNMhObBQ" 
+              alt="KP2A Cimahi" 
+              className="h-11 mx-auto"
+            />
           </div>
 
           {/* Login Form */}

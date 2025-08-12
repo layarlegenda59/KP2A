@@ -1,20 +1,10 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
-import * as yup from 'yup'
-import { LoanPayment, Loan, Member } from '../../types'
-
-export const loanPaymentSchema = yup.object({
-  loan_id: yup.string().required('Pinjaman wajib diisi'),
-  angsuran_ke: yup.number().min(1).required('Angsuran ke wajib diisi'),
-  angsuran_pokok: yup.number().min(0).required('Angsuran pokok wajib diisi'),
-  angsuran_bunga: yup.number().min(0).optional(),
-  total_angsuran: yup.number().min(0).required('Total angsuran wajib diisi'),
-  tanggal_bayar: yup.string().required('Tanggal bayar wajib diisi'),
-  status: yup.mixed<'lunas' | 'terlambat'>().oneOf(['lunas', 'terlambat']).required(),
-}).required()
-
-export type LoanPaymentFormValues = yup.InferType<typeof loanPaymentSchema>
+import { LoanPayment, Loan } from '../../types'
+import { handleNumberInputChange, formatInitialValue } from '../../utils/numberFormat'
+import { getDefaultDateValue } from '../../utils/dateFormat'
+import { loanPaymentSchema, LoanPaymentFormValues } from '../../schemas/loanPaymentSchema'
 
 export function LoanPaymentForm({
   initial,
@@ -30,23 +20,23 @@ export function LoanPaymentForm({
   const [selectedLoan, setSelectedLoan] = useState<Loan & { member?: Member } | null>(null)
   const [nextAngsuranKe, setNextAngsuranKe] = useState(1)
 
-  const defaultValues: Partial<LoanPaymentFormValues> = initial
+  const defaultValues: Partial<LoanPaymentFormValues> = useMemo(() => initial
     ? {
         loan_id: initial.loan_id,
         angsuran_ke: initial.angsuran_ke,
         angsuran_pokok: Number(initial.angsuran_pokok),
         angsuran_bunga: Number(initial.angsuran_bunga || 0),
         total_angsuran: Number(initial.total_angsuran),
-        tanggal_bayar: initial.tanggal_bayar.slice(0, 10),
+        tanggal_bayar: getDefaultDateValue(initial.tanggal_bayar),
         status: initial.status,
       }
     : {
         angsuran_pokok: 0,
         angsuran_bunga: 0,
         total_angsuran: 0,
-        tanggal_bayar: new Date().toISOString().slice(0, 10),
+        tanggal_bayar: getDefaultDateValue(),
         status: 'lunas',
-      }
+      }, [initial])
 
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<LoanPaymentFormValues>({
     resolver: yupResolver(loanPaymentSchema),
@@ -164,6 +154,7 @@ export function LoanPaymentForm({
           <input
             type="date"
             {...register('tanggal_bayar')}
+            defaultValue={defaultValues.tanggal_bayar}
             className="w-full px-3 py-2 border rounded-lg"
           />
           {errors.tanggal_bayar && <p className="text-xs text-red-600 mt-1">{errors.tanggal_bayar.message}</p>}
@@ -172,11 +163,11 @@ export function LoanPaymentForm({
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Angsuran Pokok</label>
           <input
-            type="number"
-            min="0"
-            step="1000"
-            {...register('angsuran_pokok')}
+            type="text"
+            defaultValue={formatInitialValue(defaultValues.angsuran_pokok)}
+            onChange={(e) => handleNumberInputChange(e, setValue, 'angsuran_pokok')}
             className="w-full px-3 py-2 border rounded-lg"
+            placeholder="0"
           />
           {errors.angsuran_pokok && <p className="text-xs text-red-600 mt-1">{errors.angsuran_pokok.message}</p>}
         </div>
@@ -184,11 +175,11 @@ export function LoanPaymentForm({
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Angsuran Bunga</label>
           <input
-            type="number"
-            min="0"
-            step="1000"
-            {...register('angsuran_bunga')}
+            type="text"
+            defaultValue={formatInitialValue(defaultValues.angsuran_bunga)}
+            onChange={(e) => handleNumberInputChange(e, setValue, 'angsuran_bunga')}
             className="w-full px-3 py-2 border rounded-lg"
+            placeholder="0"
           />
           {errors.angsuran_bunga && <p className="text-xs text-red-600 mt-1">{errors.angsuran_bunga.message}</p>}
         </div>
@@ -196,10 +187,9 @@ export function LoanPaymentForm({
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Total Angsuran</label>
           <input
-            type="number"
-            min="0"
-            step="1000"
-            {...register('total_angsuran')}
+            type="text"
+            defaultValue={formatInitialValue(defaultValues.total_angsuran)}
+            onChange={(e) => handleNumberInputChange(e, setValue, 'total_angsuran')}
             className="w-full px-3 py-2 border rounded-lg bg-gray-50"
             readOnly
           />

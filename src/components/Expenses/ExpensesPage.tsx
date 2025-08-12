@@ -201,9 +201,9 @@ export function ExpensesPage() {
     return Array.from(set)
   }, [items])
 
-  const totalThisPage = useMemo(() => {
-    return pageItems.reduce((acc, e) => acc + (e.jumlah || 0), 0)
-  }, [pageItems])
+  const totalAll = useMemo(() => {
+    return filtered.reduce((acc, e) => acc + (e.jumlah || 0), 0)
+  }, [filtered])
 
   return (
     <div className="space-y-6">
@@ -242,7 +242,7 @@ export function ExpensesPage() {
 
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-600">
-            Total halaman ini: <span className="font-semibold">Rp {totalThisPage.toLocaleString('id-ID')}</span>
+            Jumlah Total: <span className="font-semibold">Rp {totalAll.toLocaleString('id-ID')}</span>
           </div>
           <button onClick={() => { setEditing(null); setShowForm(true) }} className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
             <Plus className="h-4 w-4 mr-2" /> Tambah Pengeluaran
@@ -323,7 +323,23 @@ export function ExpensesPage() {
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 border rounded disabled:opacity-50">Prev</button>
-            <span className="text-sm">Page {page} of {totalPages}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm">Page</span>
+              <input
+                type="number"
+                min="1"
+                max={totalPages}
+                value={page}
+                onChange={(e) => {
+                  const newPage = parseInt(e.target.value)
+                  if (newPage >= 1 && newPage <= totalPages) {
+                    setPage(newPage)
+                  }
+                }}
+                className="w-16 px-2 py-1 text-sm border border-gray-300 rounded text-center focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <span className="text-sm">of {totalPages}</span>
+            </div>
             <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1 border rounded disabled:opacity-50">Next</button>
           </div>
         </div>

@@ -1,21 +1,10 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
-import * as yup from 'yup'
 import { Loan, Member } from '../../types'
-
-export const loansSchema = yup.object({
-  member_id: yup.string().required('Anggota wajib diisi'),
-  jumlah_pinjaman: yup.number().min(0).required('Jumlah pinjaman wajib diisi'),
-  bunga_persen: yup.number().min(0).required('Bunga wajib diisi'),
-  tenor_bulan: yup.number().min(1).required('Tenor wajib diisi'),
-  angsuran_bulanan: yup.number().min(0).required('Angsuran wajib diisi'),
-  tanggal_pinjaman: yup.string().required('Tanggal wajib diisi'),
-  status: yup.mixed<'aktif' | 'lunas' | 'pending' | 'ditolak'>().oneOf(['aktif', 'lunas', 'pending', 'ditolak']).required(),
-  sisa_pinjaman: yup.number().min(0).required('Sisa pinjaman wajib diisi'),
-}).required()
-
-export type LoansFormValues = yup.InferType<typeof loansSchema>
+import { handleNumberInputChange, formatInitialValue } from '../../utils/numberFormat'
+import { getDefaultDateValue } from '../../utils/dateFormat'
+import { loansSchema, LoansFormValues } from '../../schemas/loansSchema'
 
 export function LoansForm({
   initial,
@@ -28,26 +17,16 @@ export function LoansForm({
   onSubmit: (values: LoansFormValues) => Promise<void> | void
   onCancel: () => void
 }) {
-  const defaultValues: Partial<LoansFormValues> = initial
-    ? {
-        member_id: (initial as any).member_id,
-        jumlah_pinjaman: Number(initial.jumlah_pinjaman),
-        bunga_persen: Number(initial.bunga_persen),
-        tenor_bulan: Number(initial.tenor_bulan),
-        angsuran_bulanan: Number(initial.angsuran_bulanan),
-        tanggal_pinjaman: (initial.tanggal_pinjaman || '').slice(0, 10),
-        status: initial.status,
-        sisa_pinjaman: Number(initial.sisa_pinjaman),
-      }
-    : {
-        jumlah_pinjaman: 2000000,
-        bunga_persen: 2.0,
-        tenor_bulan: 12,
-        angsuran_bulanan: 350000,
-        tanggal_pinjaman: new Date().toISOString().slice(0, 10),
-        status: 'aktif',
-        sisa_pinjaman: 2000000,
-      }
+  const defaultValues = useMemo(() => ({
+    member_id: initial?.member_id || '',
+    jumlah_pinjaman: formatInitialValue(initial?.jumlah_pinjaman) || formatInitialValue(2000000),
+    bunga_persen: initial?.bunga_persen || 2.0,
+    tenor_bulan: initial?.tenor_bulan || 12,
+    angsuran_bulanan: formatInitialValue(initial?.angsuran_bulanan) || formatInitialValue(350000),
+    tanggal_pinjaman: getDefaultDateValue(initial?.tanggal_pinjaman),
+    status: initial?.status || 'aktif',
+    sisa_pinjaman: formatInitialValue(initial?.sisa_pinjaman) || formatInitialValue(2000000),
+  }), [initial])
 
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<LoansFormValues>({
     resolver: yupResolver(loansSchema),
@@ -86,7 +65,13 @@ export function LoansForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah Pinjaman</label>
-          <input type="number" {...register('jumlah_pinjaman')} className="w-full px-3 py-2 border rounded-lg" />
+          <input 
+            type="text" 
+            defaultValue={formatInitialValue(defaultValues.jumlah_pinjaman)}
+            onChange={(e) => handleNumberInputChange(e, setValue, 'jumlah_pinjaman')}
+            className="w-full px-3 py-2 border rounded-lg" 
+            placeholder="0"
+          />
           {errors.jumlah_pinjaman && <p className="text-xs text-red-600 mt-1">{errors.jumlah_pinjaman.message}</p>}
         </div>
         <div>
@@ -101,12 +86,18 @@ export function LoansForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Angsuran Bulanan</label>
-          <input type="number" {...register('angsuran_bulanan')} className="w-full px-3 py-2 border rounded-lg" />
+          <input 
+            type="text" 
+            defaultValue={formatInitialValue(defaultValues.angsuran_bulanan)}
+            onChange={(e) => handleNumberInputChange(e, setValue, 'angsuran_bulanan')}
+            className="w-full px-3 py-2 border rounded-lg" 
+            placeholder="0"
+          />
           {errors.angsuran_bulanan && <p className="text-xs text-red-600 mt-1">{errors.angsuran_bulanan.message}</p>}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Pinjaman</label>
-          <input type="date" {...register('tanggal_pinjaman')} className="w-full px-3 py-2 border rounded-lg" />
+          <input type="date" {...register('tanggal_pinjaman')} defaultValue={defaultValues.tanggal_pinjaman} className="w-full px-3 py-2 border rounded-lg" />
           {errors.tanggal_pinjaman && <p className="text-xs text-red-600 mt-1">{errors.tanggal_pinjaman.message}</p>}
         </div>
         <div>
@@ -121,7 +112,13 @@ export function LoansForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Sisa Pinjaman</label>
-          <input type="number" {...register('sisa_pinjaman')} className="w-full px-3 py-2 border rounded-lg" />
+          <input 
+            type="text" 
+            defaultValue={formatInitialValue(defaultValues.sisa_pinjaman)}
+            onChange={(e) => handleNumberInputChange(e, setValue, 'sisa_pinjaman')}
+            className="w-full px-3 py-2 border rounded-lg" 
+            placeholder="0"
+          />
           {errors.sisa_pinjaman && <p className="text-xs text-red-600 mt-1">{errors.sisa_pinjaman.message}</p>}
         </div>
       </div>

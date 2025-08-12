@@ -1,16 +1,9 @@
-import React from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
-import * as yup from 'yup'
-
-export const reportsSchema = yup.object({
-  tipe_laporan: yup.mixed<'bulanan' | 'triwulan' | 'tahunan'>().oneOf(['bulanan', 'triwulan', 'tahunan']).required(),
-  periode_start: yup.string().required('Periode awal wajib diisi'),
-  periode_end: yup.string().required('Periode akhir wajib diisi'),
-  is_detailed: yup.boolean().default(false),
-}).required()
-
-export type ReportsFormValues = yup.InferType<typeof reportsSchema>
+import { Report } from '../../types'
+import { getDefaultDateValue } from '../../utils/dateFormat'
+import { reportsSchema, ReportsFormValues } from '../../schemas/reportsSchema'
 
 export function ReportsForm({
   onSubmit,
@@ -19,18 +12,16 @@ export function ReportsForm({
   onSubmit: (values: ReportsFormValues) => Promise<void> | void
   onCancel: () => void
 }) {
-  const today = new Date()
-  const startDefault = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10)
-  const endDefault = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10)
+  const defaultValues = useMemo(() => ({
+    tipe_laporan: 'bulanan',
+    periode_start: getDefaultDateValue(),
+    periode_end: getDefaultDateValue(),
+    is_detailed: false,
+  }), [])
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<ReportsFormValues>({
     resolver: yupResolver(reportsSchema),
-    defaultValues: {
-      tipe_laporan: 'bulanan',
-      periode_start: startDefault,
-      periode_end: endDefault,
-      is_detailed: false,
-    }
+    defaultValues
   })
 
   return (
@@ -47,12 +38,12 @@ export function ReportsForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Periode Awal</label>
-          <input type="date" {...register('periode_start')} className="w-full px-3 py-2 border rounded-lg" />
+          <input type="date" {...register('periode_start')} defaultValue={defaultValues.periode_start} className="w-full px-3 py-2 border rounded-lg" />
           {errors.periode_start && <p className="text-xs text-red-600 mt-1">{errors.periode_start.message}</p>}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Periode Akhir</label>
-          <input type="date" {...register('periode_end')} className="w-full px-3 py-2 border rounded-lg" />
+          <input type="date" {...register('periode_end')} defaultValue={defaultValues.periode_end} className="w-full px-3 py-2 border rounded-lg" />
           {errors.periode_end && <p className="text-xs text-red-600 mt-1">{errors.periode_end.message}</p>}
         </div>
       </div>

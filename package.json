@@ -9,7 +9,9 @@
     "dev:port": "vite --port 3000",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:prepare": "node deploy.js",
+    "deploy:vercel": "vercel --prod"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.7",

@@ -1,21 +1,10 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
-import * as yup from 'yup'
 import { Due, Member } from '../../types'
-
-export const duesSchema = yup.object({
-  member_id: yup.string().required('Anggota wajib diisi'),
-  bulan: yup.number().min(1).max(12).required('Bulan wajib diisi'),
-  tahun: yup.number().min(2023).max(2100).required('Tahun wajib diisi'),
-  iuran_wajib: yup.number().min(0).required('Iuran wajib wajib diisi'),
-  iuran_sukarela: yup.number().min(0).required('Iuran sukarela wajib diisi'),
-  simpanan_wajib: yup.number().min(0).required('Simpanan wajib wajib diisi'),
-  tanggal_bayar: yup.string().required('Tanggal bayar wajib diisi'),
-  status: yup.mixed<'lunas' | 'belum_lunas'>().oneOf(['lunas', 'belum_lunas']).required(),
-}).required()
-
-export type DuesFormValues = yup.InferType<typeof duesSchema>
+import { handleNumberInputChange, formatInitialValue } from '../../utils/numberFormat'
+import { getDefaultDateValue } from '../../utils/dateFormat'
+import { duesSchema, DuesFormValues } from '../../schemas/duesSchema'
 
 export function DuesForm({
   initial,
@@ -28,8 +17,7 @@ export function DuesForm({
   onSubmit: (values: DuesFormValues) => Promise<void> | void
   onCancel: () => void
 }) {
-  const now = new Date()
-  const defaultValues: Partial<DuesFormValues> = initial
+  const defaultValues: Partial<DuesFormValues> = useMemo(() => initial
     ? {
         member_id: (initial as any).member_id,
         bulan: initial.bulan,
@@ -37,18 +25,18 @@ export function DuesForm({
         iuran_wajib: Number(initial.iuran_wajib || 0),
         iuran_sukarela: Number(initial.iuran_sukarela || 0),
         simpanan_wajib: Number((initial as any).simpanan_wajib || 0),
-        tanggal_bayar: (initial.tanggal_bayar || now.toISOString().slice(0, 10)).slice(0, 10),
+        tanggal_bayar: getDefaultDateValue(initial.tanggal_bayar),
         status: initial.status,
       }
     : {
-        bulan: now.getMonth() + 1,
-        tahun: now.getFullYear(),
+        bulan: new Date().getMonth() + 1,
+        tahun: new Date().getFullYear(),
         iuran_wajib: 50000,
         iuran_sukarela: 0,
-        simpanan_wajib: 25000,
-        tanggal_bayar: now.toISOString().slice(0, 10),
+        simpanan_wajib: 100000,
+        tanggal_bayar: getDefaultDateValue(),
         status: 'lunas',
-      }
+      }, [initial])
 
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<DuesFormValues>({
     resolver: yupResolver(duesSchema),
@@ -103,22 +91,40 @@ export function DuesForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Iuran Wajib</label>
-          <input type="number" {...register('iuran_wajib')} className="w-full px-3 py-2 border rounded-lg" />
+          <input 
+            type="text" 
+            defaultValue={formatInitialValue(defaultValues.iuran_wajib)}
+            onChange={(e) => handleNumberInputChange(e, setValue, 'iuran_wajib')}
+            className="w-full px-3 py-2 border rounded-lg" 
+            placeholder="0"
+          />
           {errors.iuran_wajib && <p className="text-xs text-red-600 mt-1">{errors.iuran_wajib.message}</p>}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Iuran Sukarela</label>
-          <input type="number" {...register('iuran_sukarela')} className="w-full px-3 py-2 border rounded-lg" />
+          <input 
+            type="text" 
+            defaultValue={formatInitialValue(defaultValues.iuran_sukarela)}
+            onChange={(e) => handleNumberInputChange(e, setValue, 'iuran_sukarela')}
+            className="w-full px-3 py-2 border rounded-lg" 
+            placeholder="0"
+          />
           {errors.iuran_sukarela && <p className="text-xs text-red-600 mt-1">{errors.iuran_sukarela.message}</p>}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Simpanan Wajib</label>
-          <input type="number" {...register('simpanan_wajib')} className="w-full px-3 py-2 border rounded-lg" />
+          <input 
+            type="text" 
+            defaultValue={formatInitialValue(defaultValues.simpanan_wajib)}
+            onChange={(e) => handleNumberInputChange(e, setValue, 'simpanan_wajib')}
+            className="w-full px-3 py-2 border rounded-lg" 
+            placeholder="0"
+          />
           {errors.simpanan_wajib && <p className="text-xs text-red-600 mt-1">{errors.simpanan_wajib.message}</p>}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Bayar</label>
-          <input type="date" {...register('tanggal_bayar')} className="w-full px-3 py-2 border rounded-lg" />
+          <input type="date" {...register('tanggal_bayar')} defaultValue={defaultValues.tanggal_bayar} className="w-full px-3 py-2 border rounded-lg" />
           {errors.tanggal_bayar && <p className="text-xs text-red-600 mt-1">{errors.tanggal_bayar.message}</p>}
         </div>
         <div>

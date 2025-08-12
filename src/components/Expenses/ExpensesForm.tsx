@@ -1,18 +1,9 @@
 import React, { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
-import * as yup from 'yup'
 import { Expense } from '../../types'
-
-export const expensesSchema = yup.object({
-  kategori: yup.string().required('Kategori wajib diisi'),
-  deskripsi: yup.string().required('Deskripsi wajib diisi'),
-  jumlah: yup.number().min(0).required('Jumlah wajib diisi'),
-  tanggal: yup.string().required('Tanggal wajib diisi'),
-  status_otorisasi: yup.mixed<'pending' | 'approved' | 'rejected'>().oneOf(['pending', 'approved', 'rejected']).required(),
-}).required()
-
-export type ExpensesFormValues = yup.InferType<typeof expensesSchema>
+import { handleNumberInputChange, formatInitialValue } from '../../utils/numberFormat'
+import { expensesSchema, ExpensesFormValues } from '../../schemas/expensesSchema'
 
 export function ExpensesForm({
   initial,
@@ -83,7 +74,13 @@ export function ExpensesForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah</label>
-          <input type="number" {...register('jumlah')} className="w-full px-3 py-2 border rounded-lg" />
+          <input 
+            type="text" 
+            defaultValue={formatInitialValue(defaultValues.jumlah)}
+            onChange={(e) => handleNumberInputChange(e, setValue, 'jumlah')}
+            className="w-full px-3 py-2 border rounded-lg" 
+            placeholder="0"
+          />
           {errors.jumlah && <p className="text-xs text-red-600 mt-1">{errors.jumlah.message}</p>}
         </div>
         <div>

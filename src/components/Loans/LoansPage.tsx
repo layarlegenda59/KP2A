@@ -121,6 +121,12 @@ export function LoansPage() {
     return filtered.slice(start, start + pageSize)
   }, [filtered, page, pageSize])
 
+  const totalAll = useMemo(() => {
+    return filtered.reduce((sum, loan) => {
+      return sum + Number(loan.jumlah_pinjaman || 0)
+    }, 0)
+  }, [filtered])
+
   const handleCreate = async (values: LoansFormValues) => {
     const payload = {
       member_id: values.member_id,
@@ -343,8 +349,33 @@ export function LoansPage() {
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 border rounded disabled:opacity-50">Prev</button>
-            <span className="text-sm">Page {page} of {totalPages}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm">Page</span>
+              <input
+                type="number"
+                min="1"
+                max={totalPages}
+                value={page}
+                onChange={(e) => {
+                  const newPage = parseInt(e.target.value)
+                  if (newPage >= 1 && newPage <= totalPages) {
+                    setPage(newPage)
+                  }
+                }}
+                className="w-16 px-2 py-1 text-sm border border-gray-300 rounded text-center focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <span className="text-sm">of {totalPages}</span>
+            </div>
             <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1 border rounded disabled:opacity-50">Next</button>
+          </div>
+        </div>
+        
+        {/* Total */}
+        <div className="px-4 py-3 border-t border-gray-200 bg-blue-50">
+          <div className="flex justify-end">
+            <span className="text-sm font-semibold text-blue-800">
+              Jumlah Total: Rp {totalAll.toLocaleString('id-ID')}
+            </span>
           </div>
         </div>
       </div>

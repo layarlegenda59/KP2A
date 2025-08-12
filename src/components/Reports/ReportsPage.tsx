@@ -195,6 +195,19 @@ export function ReportsPage() {
         return;
       }
       
+      // Ambil data pembayaran pinjaman (pemasukan)
+      const { data: loanPaymentsData, error: loanPaymentsError } = await supabase
+        .from('loan_payments')
+        .select('total_angsuran')
+        .gte('tanggal_bayar', values.periode_start)
+        .lte('tanggal_bayar', values.periode_end);
+      
+      if (loanPaymentsError) {
+        console.error('Error fetching loan payments:', loanPaymentsError);
+        toast.error('Gagal mengambil data pembayaran pinjaman');
+        return;
+      }
+      
       // Ambil data pengeluaran
       const { data: expensesData, error: expensesError } = await supabase
         .from('expenses')
@@ -210,7 +223,9 @@ export function ReportsPage() {
       }
       
       // Hitung total
-      const totalPemasukan = duesData?.reduce((sum, item) => sum + (item.iuran_wajib || 0) + (item.iuran_sukarela || 0), 0) || 0;
+      const totalIuran = duesData?.reduce((sum, item) => sum + (item.iuran_wajib || 0) + (item.iuran_sukarela || 0), 0) || 0;
+      const totalPembayaranPinjaman = loanPaymentsData?.reduce((sum, item) => sum + (item.total_angsuran || 0), 0) || 0;
+      const totalPemasukan = totalIuran + totalPembayaranPinjaman;
       const totalPengeluaran = expensesData?.reduce((sum, item) => sum + (item.jumlah || 0), 0) || 0;
       const saldoAkhir = totalPemasukan - totalPengeluaran;
       
@@ -401,7 +416,7 @@ export function ReportsPage() {
       toast.loading('Menghasilkan laporan PDF...');
       
       // Ambil data detail untuk laporan
-      let detailData = { dues: [], expenses: [] };
+      let detailData = { dues: [], loanPayments: [], expenses: [] };
       
       if (isSupabaseAvailable()) {
         // Ambil data iuran detail
@@ -410,12 +425,28 @@ export function ReportsPage() {
           .select(`
             iuran_wajib,
             iuran_sukarela,
+            simpanan_wajib,
             tanggal_bayar,
             member:members(nama_lengkap)
           `)
           .gte('tanggal_bayar', report.periode_start)
           .lte('tanggal_bayar', report.periode_end)
           .eq('status', 'lunas');
+        
+        // Ambil data pembayaran pinjaman detail
+        const { data: loanPaymentsData } = await supabase
+          .from('loan_payments')
+          .select(`
+            total_angsuran,
+            angsuran_pokok,
+            angsuran_bunga,
+            tanggal_bayar,
+            loan:loans(
+              member:members(nama_lengkap)
+            )
+          `)
+          .gte('tanggal_bayar', report.periode_start)
+          .lte('tanggal_bayar', report.periode_end);
         
         // Ambil data pengeluaran detail
         const { data: expensesData } = await supabase
@@ -432,6 +463,7 @@ export function ReportsPage() {
         
         detailData = {
           dues: duesData || [],
+          loanPayments: loanPaymentsData || [],
           expenses: expensesData || []
         };
       }
@@ -439,10 +471,10 @@ export function ReportsPage() {
       // Membuat elemen sementara untuk dirender ke PDF
       const tempDiv = document.createElement('div');
       tempDiv.style.width = '794px'; // Ukuran A4 dalam pixel (210mm = 794px at 96dpi)
-      tempDiv.style.padding = '20px';
-      tempDiv.style.fontFamily = 'Arial, sans-serif';
-      tempDiv.style.fontSize = '12px';
-      tempDiv.style.lineHeight = '1.4';
+      tempDiv.style.padding = '75px 75px 56px 75px'; // Margin: atas 20mm, kiri/kanan 20mm, bawah 15mm
+      tempDiv.style.fontFamily = 'Gadugi, Arial, sans-serif';
+      tempDiv.style.fontSize = '10pt';
+      tempDiv.style.lineHeight = '1.2';
       tempDiv.style.backgroundColor = 'white';
       
       // Format tanggal Indonesia
@@ -454,234 +486,303 @@ export function ReportsPage() {
         });
       };
       
-      // Format mata uang
+      // Format mata uang tanpa simbol Rp
       const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
-          style: 'currency',
-          currency: 'IDR',
           minimumFractionDigits: 0
         }).format(amount);
       };
       
-      // Mengisi konten laporan dengan format yang lebih profesional
+      // Mengisi konten laporan sesuai spesifikasi desain referensi
       tempDiv.innerHTML = `
         <style>
+          @import url('https://fonts.googleapis.com/css2?family=Cambria:ital,wght@0,400;0,700;1,400&display=swap');
+          
           * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
           }
+          
           body {
-            font-family: 'Times New Roman', serif;
-            font-size: 12pt;
-            line-height: 1.5;
+            font-family: 'Gadugi', Arial, sans-serif;
+            font-size: 10pt;
+            line-height: 1.2;
             color: #000;
             background: white;
           }
+          
           .header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+            position: relative;
+          }
+          
+          .logo-section {
+            margin-bottom: 15px;
             text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #000;
-            padding-bottom: 20px;
           }
-          .logo {
-            font-size: 14pt;
-            font-weight: bold;
-            color: #1e40af;
-            margin-bottom: 10px;
+          
+          .logo-image {
+            width: 88px;
+            height: auto;
+            max-height: 88px;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            image-rendering: pixelated;
           }
-          .title {
-            font-size: 18pt;
+          
+          .title-section {
+            text-align: center;
+            width: 100%;
+          }
+          
+          .main-title {
+            font-family: 'Cambria', serif;
             font-weight: bold;
-            margin-bottom: 8px;
+            font-size: 16pt;
             color: #000;
             text-transform: uppercase;
-          }
-          .subtitle {
-            font-size: 14pt;
-            color: #333;
             margin-bottom: 5px;
           }
-          .period {
-            font-size: 12pt;
-            color: #666;
-            font-style: italic;
-          }
-          .section {
-            margin-bottom: 25px;
-          }
-          .section-title {
-            font-size: 14pt;
+          
+          .subtitle {
+            font-family: 'Cambria', serif;
             font-weight: bold;
-            margin-bottom: 10px;
-            color: #1e40af;
-            border-bottom: 1px solid #ccc;
-            padding-bottom: 5px;
+            font-size: 12pt;
+            color: #000;
+            margin-bottom: 3px;
           }
-          table {
+          
+          .period {
+            font-family: 'Cambria', serif;
+            font-style: italic;
+            font-size: 10pt;
+            color: #333333;
+          }
+          
+          .main-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
-            font-size: 11pt;
-            page-break-inside: avoid;
+            margin-bottom: 15px;
+            font-family: 'Gadugi', Arial, sans-serif;
           }
-          th {
+          
+          .main-table th {
             background-color: #f8f9fa;
             color: #000;
+            font-family: 'Gadugi', Arial, sans-serif;
             font-weight: bold;
-            padding: 12px 8px;
-            border: 1px solid #000;
+            font-size: 9pt;
+            padding: 5px 4px;
+            border: 0.5pt solid #555555;
             text-align: left;
-            page-break-inside: avoid;
+            height: 20px;
           }
-          td {
-            padding: 10px 8px;
-            border: 1px solid #000;
-            vertical-align: top;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            page-break-inside: avoid;
+          
+          .main-table td {
+            font-family: 'Gadugi', Arial, sans-serif;
+            font-size: 9pt;
+            padding: 4px 4px;
+            border: 0.5pt solid #555555;
+            vertical-align: middle;
+            height: 18px;
           }
-          .number {
+          
+          .main-table .number-cell {
+            font-family: 'Gadugi', Arial, sans-serif;
+            font-size: 9pt;
             text-align: right;
           }
-          .total-row {
-            background-color: #e3f2fd;
+          
+          .col-no { width: 37px; } /* 10mm */
+          .col-uraian { width: 264px; } /* 70mm */
+          .col-bulan { width: 170px; } /* 45mm */
+          .col-akumulasi { width: 170px; } /* 45mm */
+          
+          .kesimpulan {
+            background-color: #DCEFE6;
+            padding: 10px;
+            margin-top: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+          }
+          
+          .kesimpulan-title {
+            font-family: 'Gadugi', Arial, sans-serif;
             font-weight: bold;
+            font-size: 9pt;
+            color: #000;
+            margin-bottom: 8px;
           }
-          .summary {
-            background-color: #f5f5f5;
-            padding: 20px;
-            border-radius: 5px;
-            margin-top: 20px;
+          
+          .kesimpulan-content {
+            font-family: 'Gadugi', Arial, sans-serif;
+            font-size: 8pt;
+            color: #000;
+            line-height: 1.3;
           }
-          .footer {
-            margin-top: 40px;
-            text-align: center;
-            font-size: 10pt;
-            color: #666;
-            border-top: 1px solid #ccc;
-            padding-top: 15px;
-            page-break-inside: avoid;
+          
+          .kesimpulan-list {
+            margin-left: 15px;
+            margin-bottom: 8px;
           }
-          .page-number {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            font-size: 10pt;
-            color: #666;
+          
+          .kesimpulan-list div {
+            margin-bottom: 3px;
           }
-          @media print {
-            .page-number {
-              position: fixed;
-              bottom: 10mm;
-              right: 10mm;
-            }
-          }
+          
           .signature {
-            margin-top: 40px;
+            margin-top: 20px;
             display: flex;
             justify-content: space-between;
+            align-items: flex-start;
           }
+          
           .signature-box {
             text-align: center;
-            width: 200px;
+            width: 180px;
+            font-family: 'Gadugi', Arial, sans-serif;
           }
-          .signature-line {
-            border-bottom: 1px solid #000;
-            margin-top: 60px;
-            margin-bottom: 5px;
+          
+          .signature-location {
+            font-size: 9pt;
+            margin-bottom: 3px;
+          }
+          
+          .signature-title {
+            font-weight: bold;
+            font-size: 9pt;
+            margin-bottom: 45px;
+          }
+          
+          .signature-name {
+            font-weight: normal;
+            font-size: 9pt;
+          }
+          
+          .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-family: 'Consolas', monospace;
+            font-size: 7pt;
+            color: #555555;
+            line-height: 1.2;
+          }
+          
+          .page-number {
+            text-align: center;
+            font-family: 'Consolas', monospace;
+            font-size: 8pt;
+            color: #555555;
+            margin-top: 10px;
           }
         </style>
         
         <div class="header">
-          <div class="logo">KP2A CIMAHI</div>
-          <div class="title">Laporan Keuangan</div>
-          <div class="subtitle">Periode ${report.tipe_laporan.toUpperCase()}</div>
-          <div class="period">${formatDate(report.periode_start)} s/d ${formatDate(report.periode_end)}</div>
+          <div class="logo-section">
+            <img src="https://kcxerkbbxeevxixsefwr.supabase.co/storage/v1/object/sign/material/Logo%20KP2A%20Potrait%20-Full.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81MGFlMGNiNi0yZDAzLTQ3NTgtODhkMy1kNjg1OTg0MmFlOWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJtYXRlcmlhbC9Mb2dvIEtQMkEgUG90cmFpdCAtRnVsbC5wbmciLCJpYXQiOjE3NTQ5NTgwOTgsImV4cCI6MTc4NjQ5NDA5OH0.66SuUMMA6CUQIx8kw7jU5HkiG0wY1vlfEPyqKTo3YEg" alt="KP2A Logo" class="logo-image" />
+          </div>
+          
+          <div class="title-section">
+            <div class="main-title">LAPORAN KEUANGAN</div>
+            <div class="subtitle">Periode ${report.tipe_laporan.toUpperCase()}</div>
+            <div class="period">${formatDate(report.periode_start)} s/d ${formatDate(report.periode_end)}</div>
+          </div>
         </div>
         
-        ${report.tipe_laporan === 'tahunan' ? `
-        <div class="section">
-          <div class="section-title">NERACA RUGI LABA</div>
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 60%">Keterangan</th>
-                <th style="width: 40%" class="number">Jumlah (Rp)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>PENDAPATAN</strong></td>
-                <td class="number"><strong>${formatCurrency(report.total_pemasukan)}</strong></td>
-              </tr>
-              <tr>
-                <td style="padding-left: 20px;">Iuran Wajib Anggota</td>
-                <td class="number">${formatCurrency(report.total_pemasukan * 0.8)}</td>
-              </tr>
-              <tr>
-                <td style="padding-left: 20px;">Iuran Sukarela</td>
-                <td class="number">${formatCurrency(report.total_pemasukan * 0.15)}</td>
-              </tr>
-              <tr>
-                <td style="padding-left: 20px;">Pendapatan Lain-lain</td>
-                <td class="number">${formatCurrency(report.total_pemasukan * 0.05)}</td>
-              </tr>
-              <tr style="height: 10px;"><td colspan="2"></td></tr>
-              <tr>
-                <td><strong>PENGELUARAN</strong></td>
-                <td class="number"><strong>${formatCurrency(report.total_pengeluaran)}</strong></td>
-              </tr>
-              <tr>
-                <td style="padding-left: 20px;">Biaya Operasional</td>
-                <td class="number">${formatCurrency(report.total_pengeluaran * 0.6)}</td>
-              </tr>
-              <tr>
-                <td style="padding-left: 20px;">Biaya Administrasi</td>
-                <td class="number">${formatCurrency(report.total_pengeluaran * 0.25)}</td>
-              </tr>
-              <tr>
-                <td style="padding-left: 20px;">Biaya Lain-lain</td>
-                <td class="number">${formatCurrency(report.total_pengeluaran * 0.15)}</td>
-              </tr>
-              <tr style="height: 10px;"><td colspan="2"></td></tr>
-              <tr class="total-row">
-                <td><strong>${report.saldo_akhir >= 0 ? 'LABA BERSIH' : 'RUGI BERSIH'}</strong></td>
-                <td class="number"><strong>${formatCurrency(Math.abs(report.saldo_akhir))}</strong></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        ` : `
-        <div class="section">
-          <div class="section-title">RINGKASAN KEUANGAN</div>
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 60%">Keterangan</th>
-                <th style="width: 40%" class="number">Jumlah (Rp)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Total Pemasukan</td>
-                <td class="number">${formatCurrency(report.total_pemasukan)}</td>
-              </tr>
-              <tr>
-                <td>Total Pengeluaran</td>
-                <td class="number">${formatCurrency(report.total_pengeluaran)}</td>
-              </tr>
-              <tr class="total-row">
-                <td><strong>Saldo Akhir Periode</strong></td>
-                <td class="number"><strong>${formatCurrency(report.saldo_akhir)}</strong></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        `}
-        
-        ${isDetailed && detailData.dues.length > 0 ? `
+        <table class="main-table">
+          <thead>
+            <tr>
+              <th class="col-no">No</th>
+              <th class="col-uraian">Uraian</th>
+              <th class="col-bulan">Bulan / Periode ini (Rp)</th>
+              <th class="col-akumulasi">Akumulasi s/d Tahun ini (Rp)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1.</td>
+              <td>Iuran Wajib</td>
+              <td class="number-cell">${formatCurrency(report.total_pemasukan * 0.6)}</td>
+              <td class="number-cell">${formatCurrency(report.total_pemasukan * 0.6)}</td>
+            </tr>
+            <tr>
+              <td>2.</td>
+              <td>Iuran Sukarela</td>
+              <td class="number-cell">${formatCurrency(report.total_pemasukan * 0.25)}</td>
+              <td class="number-cell">${formatCurrency(report.total_pemasukan * 0.25)}</td>
+            </tr>
+            <tr>
+              <td>3.</td>
+              <td>Simpanan Wajib</td>
+              <td class="number-cell">${formatCurrency(report.total_pemasukan * 0.15)}</td>
+              <td class="number-cell">${formatCurrency(report.total_pemasukan * 0.15)}</td>
+            </tr>
+            <tr style="background-color: #f0f0f0;">
+              <td colspan="2" style="font-weight: bold;">Total Pendapatan</td>
+              <td class="number-cell" style="font-weight: bold;">${formatCurrency(report.total_pemasukan)}</td>
+              <td class="number-cell" style="font-weight: bold;">${formatCurrency(report.total_pemasukan)}</td>
+            </tr>
+            <tr>
+              <td>4.</td>
+              <td>Gaji Ketua</td>
+              <td class="number-cell">${formatCurrency(report.total_pengeluaran * 0.3)}</td>
+              <td class="number-cell">${formatCurrency(report.total_pengeluaran * 0.3)}</td>
+            </tr>
+            <tr>
+              <td>5.</td>
+              <td>Gaji Bendahara</td>
+              <td class="number-cell">${formatCurrency(report.total_pengeluaran * 0.25)}</td>
+              <td class="number-cell">${formatCurrency(report.total_pengeluaran * 0.25)}</td>
+            </tr>
+            <tr>
+              <td>6.</td>
+              <td>Pengeluaran Operasional</td>
+              <td class="number-cell">${formatCurrency(report.total_pengeluaran * 0.3)}</td>
+              <td class="number-cell">${formatCurrency(report.total_pengeluaran * 0.3)}</td>
+            </tr>
+            <tr>
+              <td>7.</td>
+              <td>Penyusutan/Perawatan</td>
+              <td class="number-cell">${formatCurrency(report.total_pengeluaran * 0.1)}</td>
+              <td class="number-cell">${formatCurrency(report.total_pengeluaran * 0.1)}</td>
+            </tr>
+            <tr>
+              <td>8.</td>
+              <td>Biaya Lain-lain</td>
+              <td class="number-cell">${formatCurrency(report.total_pengeluaran * 0.05)}</td>
+              <td class="number-cell">${formatCurrency(report.total_pengeluaran * 0.05)}</td>
+            </tr>
+            <tr style="background-color: #f0f0f0;">
+              <td colspan="2" style="font-weight: bold;">Total Pengeluaran</td>
+              <td class="number-cell" style="font-weight: bold;">${formatCurrency(report.total_pengeluaran)}</td>
+              <td class="number-cell" style="font-weight: bold;">${formatCurrency(report.total_pengeluaran)}</td>
+            </tr>
+            <tr style="background-color: #e8f5e8;">
+              <td colspan="2" style="font-weight: bold;">Laba / Rugi Bersih</td>
+              <td class="number-cell" style="font-weight: bold;">${formatCurrency(report.saldo_akhir)}</td>
+              <td class="number-cell" style="font-weight: bold;">${formatCurrency(report.saldo_akhir)}</td>
+            </tr>
+          </tbody>
+         </table>
+         
+         <div class="kesimpulan">
+           <div class="kesimpulan-title">KESIMPULAN</div>
+           <div class="kesimpulan-content">
+             Berdasarkan laporan keuangan periode ${formatDate(report.periode_start)} sampai dengan ${formatDate(report.periode_end)}, KP2A Cimahi mencatat :
+             <div class="kesimpulan-list">
+               <div>Total pemasukan sebesar ${formatCurrency(report.total_pemasukan)} (terdiri dari iuran anggota dan pembayaran pinjaman).</div>
+               <div>Total pengeluaran sebesar ${formatCurrency(report.total_pengeluaran)}.</div>
+               <div>Saldo akhir periode sebesar ${formatCurrency(report.saldo_akhir)}.</div>
+             </div>
+             Kondisi keuangan menunjukkan ${report.saldo_akhir >= 0 ? 'surplus yang baik untuk periode ini.' : 'defisit yang perlu untuk periode ini.'}
+           </div>
+         </div>
+         
+         ${isDetailed && detailData.dues.length > 0 ? `
         <div class="section">
           <div class="section-title">DETAIL PEMASUKAN (IURAN ANGGOTA)</div>
           <table>
@@ -707,6 +808,38 @@ export function ReportsPage() {
               <tr class="total-row">
                 <td colspan="4"><strong>Total Pemasukan</strong></td>
                 <td class="number"><strong>${formatCurrency(detailData.dues.reduce((sum, due) => sum + (due.iuran_wajib || 0) + (due.iuran_sukarela || 0), 0))}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
+        
+        ${isDetailed && detailData.loanPayments.length > 0 ? `
+        <div class="section">
+          <div class="section-title">DETAIL PEMASUKAN (PEMBAYARAN PINJAMAN)</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 15%">Tanggal</th>
+                <th style="width: 35%">Nama Anggota</th>
+                <th style="width: 20%" class="number">Angsuran Pokok (Rp)</th>
+                <th style="width: 20%" class="number">Angsuran Bunga (Rp)</th>
+                <th style="width: 10%" class="number">Total (Rp)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${detailData.loanPayments.map(payment => `
+                <tr>
+                  <td>${formatDate(payment.tanggal_bayar)}</td>
+                  <td>${payment.loan?.member?.nama_lengkap || 'N/A'}</td>
+                  <td class="number">${formatCurrency(payment.angsuran_pokok || 0)}</td>
+                  <td class="number">${formatCurrency(payment.angsuran_bunga || 0)}</td>
+                  <td class="number">${formatCurrency(payment.total_angsuran || 0)}</td>
+                </tr>
+              `).join('')}
+              <tr class="total-row">
+                <td colspan="4"><strong>Total Pembayaran Pinjaman</strong></td>
+                <td class="number"><strong>${formatCurrency(detailData.loanPayments.reduce((sum, payment) => sum + (payment.total_angsuran || 0), 0))}</strong></td>
               </tr>
             </tbody>
           </table>
@@ -750,7 +883,7 @@ export function ReportsPage() {
             KP2A Cimahi mencatat:
           </p>
           <ul style="margin-left: 20px; margin-bottom: 15px;">
-            <li>Total pemasukan sebesar ${formatCurrency(report.total_pemasukan)}</li>
+            <li>Total pemasukan sebesar ${formatCurrency(report.total_pemasukan)} (terdiri dari iuran anggota dan pembayaran pinjaman)</li>
             <li>Total pengeluaran sebesar ${formatCurrency(report.total_pengeluaran)}</li>
             <li>Saldo akhir periode sebesar ${formatCurrency(report.saldo_akhir)}</li>
           </ul>
@@ -763,22 +896,20 @@ export function ReportsPage() {
         
         <div class="signature">
           <div class="signature-box">
-            <div>Mengetahui,</div>
-            <div style="font-weight: bold;">Ketua KP2A Cimahi</div>
-            <div class="signature-line"></div>
-            <div>(...........................)</div>
+            <div class="signature-location">Mengetahui,</div>
+            <div class="signature-title">Ketua KP2A Cimahi</div>
+            <div class="signature-name">( Romdhoni )</div>
           </div>
           <div class="signature-box">
-            <div>Cimahi, ${formatDate(new Date().toISOString().split('T')[0])}</div>
-            <div style="font-weight: bold;">Bendahara</div>
-            <div class="signature-line"></div>
-            <div>(...........................)</div>
+            <div class="signature-location">Cimahi, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+            <div class="signature-title">Bendahara</div>
+            <div class="signature-name">( Aan Rusdana )</div>
           </div>
         </div>
         
         <div class="footer">
-          <p>Laporan ini dibuat secara otomatis oleh Sistem Informasi KP2A Cimahi</p>
-          <p>Dicetak pada: ${new Date().toLocaleString('id-ID')}</p>
+          <div>Laporan ini dibuat secara otomatis oleh Sistem Informasi KP2A Cimahi</div>
+          <div>Dicetak pada : ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</div>
         </div>
         
         <div class="page-number">
@@ -789,27 +920,31 @@ export function ReportsPage() {
       // Menambahkan elemen ke body untuk dirender
       document.body.appendChild(tempDiv);
       
-      // Menggunakan html2canvas untuk mengubah elemen HTML menjadi canvas
+      // Menggunakan html2canvas untuk mengubah elemen HTML menjadi canvas dengan kualitas optimal untuk file 3-5 MB
       const canvas = await html2canvas(tempDiv, { 
-        scale: 1,
+        scale: 2.5, // Kualitas tinggi namun ukuran file terkontrol
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
-        removeContainer: true
+        removeContainer: true,
+        width: tempDiv.scrollWidth,
+        height: tempDiv.scrollHeight,
+        scrollX: 0,
+        scrollY: 0
       });
       
-      // Menggunakan jsPDF untuk membuat PDF dari canvas dengan kompresi
+      // Menggunakan jsPDF untuk membuat PDF dari canvas dengan kualitas seimbang
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4',
-        compress: true,
-        precision: 2
+        compress: true, // Aktifkan kompresi untuk mengontrol ukuran file
+        precision: 8 // Presisi yang seimbang antara kualitas dan ukuran
       });
       
-      // Menambahkan gambar canvas ke PDF dengan kompresi
-      const imgData = canvas.toDataURL('image/jpeg', 0.8); // Gunakan JPEG dengan kualitas 80%
+      // Menambahkan gambar canvas ke PDF dengan kualitas optimal untuk ukuran 3-5 MB
+      const imgData = canvas.toDataURL('image/jpeg', 0.92); // JPEG dengan kualitas 92% untuk keseimbangan
       const imgWidth = 210; // A4 width in mm
       const pageHeight = 297; // A4 height in mm
       const imgHeight = canvas.height * imgWidth / canvas.width;
@@ -834,8 +969,9 @@ export function ReportsPage() {
       const totalPages = pageCount;
       for (let i = 1; i <= totalPages; i++) {
         pdf.setPage(i);
-        pdf.setFontSize(10);
-        pdf.setTextColor(100);
+        pdf.setFont('courier', 'normal'); // Menggunakan Courier sebagai alternatif Consolas
+        pdf.setFontSize(8);
+        pdf.setTextColor(85, 85, 85); // Warna #555555
         pdf.text(`Halaman ${i} dari ${totalPages}`, 105, 290, { align: 'center' });
       }
       
@@ -859,8 +995,8 @@ export function ReportsPage() {
     const matchType = typeFilter === 'all' ? true : report.tipe_laporan === typeFilter;
     const matchSearch = search ? 
       report.tipe_laporan.includes(search.toLowerCase()) || 
-      new Date(report.periode_start).toLocaleDateString().includes(search) ||
-      new Date(report.periode_end).toLocaleDateString().includes(search) :
+      new Date(report.periode_start).toLocaleDateString('id-ID', { day: 'numeric', month: 'numeric', year: 'numeric' }).includes(search) ||
+        new Date(report.periode_end).toLocaleDateString('id-ID', { day: 'numeric', month: 'numeric', year: 'numeric' }).includes(search) :
       true;
     const matchDateRange = dateRange ? 
       new Date(report.periode_start) >= new Date(dateRange.start) && 
@@ -1019,7 +1155,7 @@ export function ReportsPage() {
               {filteredReports.map((report) => (
                 <tr key={report.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {new Date(report.periode_start).toLocaleDateString()} - {new Date(report.periode_end).toLocaleDateString()}
+                    {new Date(report.periode_start).toLocaleDateString('id-ID', { day: 'numeric', month: 'numeric', year: 'numeric' })} - {new Date(report.periode_end).toLocaleDateString('id-ID', { day: 'numeric', month: 'numeric', year: 'numeric' })}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap capitalize">{report.tipe_laporan}</td>
                   <td className="px-6 py-4 whitespace-nowrap">Rp {report.total_pemasukan.toLocaleString()}</td>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Date Test</title>
+</head>
+<body>
+    <h1>Date Format Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        // Test current date
+        const now = new Date();
+        results.innerHTML += `<p>Current Date: ${now}</p>`;
+        results.innerHTML += `<p>ISO String: ${now.toISOString()}</p>`;
+        results.innerHTML += `<p>ISO Slice(0,10): ${now.toISOString().slice(0, 10)}</p>`;
+        results.innerHTML += `<p>Locale String ID: ${now.toLocaleDateString('id-ID')}</p>`;
+        results.innerHTML += `<p>Full Year: ${now.getFullYear()}</p>`;
+        
+        // Test specific date
+        const testDate = new Date('2023-12-15');
+        results.innerHTML += `<hr>`;
+        results.innerHTML += `<p>Test Date (2023-12-15): ${testDate}</p>`;
+        results.innerHTML += `<p>Test ISO String: ${testDate.toISOString()}</p>`;
+        results.innerHTML += `<p>Test ISO Slice(0,10): ${testDate.toISOString().slice(0, 10)}</p>`;
+        results.innerHTML += `<p>Test Locale String ID: ${testDate.toLocaleDateString('id-ID')}</p>`;
+        results.innerHTML += `<p>Test Full Year: ${testDate.getFullYear()}</p>`;
+        
+        // Test date input
+        results.innerHTML += `<hr>`;
+        results.innerHTML += `<p>Date Input Test:</p>`;
+        results.innerHTML += `<input type="date" value="${now.toISOString().slice(0, 10)}" />`;
+    </script>
+</body>
+</html>

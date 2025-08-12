@@ -838,7 +838,7 @@ SELECT * FROM members JOIN dues;`
                             <div className="flex-1">
                               <h4 className="font-medium text-gray-900">{savedQuery.name}</h4>
                               <p className="text-sm text-gray-500 mt-1">
-                                Created: {new Date(savedQuery.createdAt).toLocaleDateString()}
+                                Created: {new Date(savedQuery.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'numeric', year: 'numeric' })}
                               </p>
                               <pre className="text-xs text-gray-600 mt-2 bg-gray-50 p-2 rounded overflow-x-auto">
                                 {savedQuery.query.substring(0, 200)}

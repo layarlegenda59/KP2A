@@ -50,10 +50,16 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200">
         <div className="flex items-center space-x-2">
-          <Building2 className="h-8 w-8 text-blue-600" />
-          <div className="text-lg font-bold text-gray-900">
-            KP2A Cimahi
-          </div>
+          <img 
+            src="https://kcxerkbbxeevxixsefwr.supabase.co/storage/v1/object/sign/material/Logo%20KP2A%20-%20Picture%20Only.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81MGFlMGNiNi0yZDAzLTQ3NTgtODhkMy1kNjg1OTg0MmFlOWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJtYXRlcmlhbC9Mb2dvIEtQMkEgLSBQaWN0dXJlIE9ubHkucG5nIiwiaWF0IjoxNzU0OTI4OTI1LCJleHAiOjE3ODY0NjQ5MjV9.v_forvNDBKJ3KD9PoPGrfpCBCxS0-1qANxT9tECXxcU" 
+            alt="KP2A Logo" 
+            className="h-11 w-11 object-contain"
+          />
+          <img 
+            src="https://kcxerkbbxeevxixsefwr.supabase.co/storage/v1/object/sign/material/Logo%20KP2A%20-%20Text%20Only.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81MGFlMGNiNi0yZDAzLTQ3NTgtODhkMy1kNjg1OTg0MmFlOWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJtYXRlcmlhbC9Mb2dvIEtQMkEgLSBUZXh0IE9ubHkucG5nIiwiaWF0IjoxNzU0OTI5ODA1LCJleHAiOjE3ODY0NjU4MDV9.CM0aW6nGsGbUU7M72Qo1i__xDbPYfjRg0XysgR-y72k" 
+            alt="KP2A Cimahi" 
+            className="h-4 object-contain"
+          />
         </div>
       </div>
 

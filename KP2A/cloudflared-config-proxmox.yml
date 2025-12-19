@@ -1,0 +1,13 @@
+tunnel: e4cee886-4f46-4676-a344-7ea2cb86e4eb
+credentials-file: /home/dell/.cloudflared/e4cee886-4f46-4676-a344-7ea2cb86e4eb.json
+
+ingress:
+  - hostname: sidarsih.site
+    service: http://localhost:5174
+  - hostname: www.sidarsih.site
+    service: http://localhost:5174
+  - hostname: admin.sidarsih.site
+    service: http://localhost:5174
+  - hostname: whatsapp.sidarsih.site
+    service: http://localhost:3001
+  - service: http_status:404

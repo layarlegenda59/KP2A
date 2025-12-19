@@ -1,0 +1,17 @@
+- [x] Analyze project structure and understand frontend/backend setup
+- [x] Check package.json files for available scripts
+- [x] Install dependencies for both frontend and backend
+- [x] Start the backend server
+- [x] Start the frontend application
+- [x] Fix WebSocket connection configuration to use local backend
+- [x] Verify both applications are running correctly
+- [x] Check existing Cloudflare tunnel configuration
+- [x] Verify domain DNS records on Cloudflare dashboard
+- [x] Configure DNS records for subdomains (api, whatsapp, admin)
+- [x] Confirm SSL/TLS configuration (Full strict mode)
+- [x] Update tunnel configuration for production domain
+- [ ] Test tunnel connectivity locally
+- [ ] Verify external access to sidarsih.site
+- [ ] Set up Cloudflare security features (WAF, rate limiting)
+- [ ] Test SSL certificate and HTTPS redirect
+- [ ] Monitor tunnel stability and connection health

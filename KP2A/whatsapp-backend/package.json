@@ -1,0 +1,48 @@
+{
+  "name": "whatsapp-backend",
+  "version": "2.0.0",
+  "description": "WhatsApp Backend Service with whatsapp-web.js integration",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "whatsapp",
+    "whatsapp-web.js",
+    "puppeteer",
+    "express",
+    "socket.io",
+    "nodejs"
+  ],
+  "author": "KP2A Cimahi",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.4",
+    "@whiskeysockets/baileys": "^6.6.0",
+    "@zxing/library": "^0.21.3",
+    "cors": "^2.8.5",
+    "crypto-browserify": "^3.12.1",
+    "csv-parser": "^3.2.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "fs-extra": "^11.3.2",
+    "jimp": "^1.6.0",
+    "multer": "^2.0.2",
+    "node-cache": "^5.1.2",
+    "path": "^0.12.7",
+    "pino": "^8.16.2",
+    "puppeteer": "^24.24.1",
+    "qrcode": "^1.5.3",
+    "qrcode-terminal": "^0.12.0",
+    "socket.io": "^4.7.5",
+    "whatsapp-web.js": "^1.34.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

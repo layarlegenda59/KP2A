@@ -1,0 +1,17 @@
+/* Custom Scrollbar for Sidebar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 20px;
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(107, 114, 128, 0.8);
+}
